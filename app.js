@@ -1,7 +1,7 @@
 /* =====================================================================
    Facturación Rápida de Recargas — lógica completa (vanilla JS)
    ---------------------------------------------------------------------
-   Flujo:  PIN  →  Cliente + Productos  →  FACTURAR  →  Azur  →  ✅ clave
+   Flujo:  Cliente + Productos  →  FACTURAR  →  Azur  →  ✅ clave
    ===================================================================== */
 
 /* ============ CONFIGURACIÓN ============ */
