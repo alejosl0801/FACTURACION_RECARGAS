@@ -329,50 +329,65 @@ function generarComprobante() {
   const E = CONFIG.EMISOR;
   const barras = window.barcode39SVG(codInterno, { height: 55, narrow: 2, ratio: 3 });
 
+  const row = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
+
   $("#comprobante").innerHTML =
-    '<div class="cmp-banner">COMPROBANTE PROVISIONAL · NO ES FACTURA SRI' +
-      '<br><small>Su factura electrónica autorizada se enviará por correo.</small></div>' +
-    '<div class="cmp-head">' +
-      '<div class="cmp-emisor">' +
-        '<div class="cmp-logo">🔥 ' + E.comercial + '</div>' +
-        '<div><b>' + E.razonSocial + '</b></div>' +
-        '<div>RUC: ' + E.ruc + '</div>' +
-        '<div>Matriz: ' + E.direccion + '</div>' +
-        '<div>' + E.email + '</div>' +
-        '<div>' + E.telefonos + '</div>' +
-        '<div>Obligado a llevar contabilidad: ' + E.contabilidad + '</div>' +
+    '<div class="ride">' +
+      '<div class="ride-top">' +
+        '<div class="ride-emisor">' +
+          '<div class="ride-logo">🔥 ' + E.comercial + '</div>' +
+          '<div class="ride-rs">' + E.razonSocial + '</div>' +
+          '<div>Dir. Matriz: ' + E.direccion + '</div>' +
+          '<div>' + E.email + '</div>' +
+          '<div>Tel: ' + E.telefonos + '</div>' +
+          '<div>Obligado a llevar contabilidad: <b>' + E.contabilidad + '</b></div>' +
+        '</div>' +
+        '<div class="ride-doc">' +
+          '<div class="ride-ruc">R.U.C.: ' + E.ruc + '</div>' +
+          '<div class="ride-tipo">COMPROBANTE PROVISIONAL</div>' +
+          '<div class="ride-no">No. ' + numProv + '</div>' +
+          '<div class="ride-lbl">NÚMERO DE CONTROL INTERNO</div>' +
+          '<div class="ride-lbl ride-nosri">(documento propio del local · no es autorización del SRI)</div>' +
+          '<div class="ride-cod">' + codInterno + '</div>' +
+          '<div class="ride-barras">' + barras + '</div>' +
+          '<div class="ride-fh">FECHA Y HORA: ' + fechaTxt + ' ' + horaTxt + '</div>' +
+        '</div>' +
       '</div>' +
-      '<div class="cmp-doc">' +
-        '<div class="cmp-tipo">COMPROBANTE PROVISIONAL</div>' +
-        '<div>N°: <b>' + numProv + '</b></div>' +
-        '<div>Control interno: ' + codInterno + '</div>' +
-        '<div>Fecha: ' + fechaTxt + ' ' + horaTxt + '</div>' +
-        '<div class="cmp-barras">' + barras + '</div>' +
-        '<div class="cmp-barras-txt">' + codInterno + '</div>' +
+      '<div class="ride-cliente">' +
+        '<div class="r2"><span><b>Razón Social / Nombres:</b> ' + cli.nombre + '</span>' +
+          '<span><b>Identificación:</b> ' + cli.id + '</span></div>' +
+        '<div class="r2"><span><b>Fecha Emisión:</b> ' + fechaTxt + '</span>' +
+          '<span><b>Teléfono:</b> ' + cli.tel + '</span></div>' +
+        '<div><b>Dirección:</b> ' + cli.dir + '</div>' +
+        '<div><b>Email:</b> ' + cli.email + '</div>' +
       '</div>' +
-    '</div>' +
-    '<div class="cmp-cliente">' +
-      '<div><span>Razón Social / Nombres:</span> ' + cli.nombre + '</div>' +
-      '<div><span>Identificación:</span> ' + cli.id + '</div>' +
-      '<div><span>Dirección:</span> ' + cli.dir + '</div>' +
-      '<div><span>Teléfono:</span> ' + cli.tel + ' &nbsp; <span>Email:</span> ' + cli.email + '</div>' +
-    '</div>' +
-    '<table class="cmp-items"><thead><tr><th>Cód.</th><th>Cant</th><th>Descripción</th>' +
-      '<th class="num">P.Unit</th><th class="num">Descto</th><th class="num">Subtotal</th></tr></thead>' +
-      '<tbody>' + filas + '</tbody></table>' +
-    '<div class="cmp-bottom">' +
-      '<div class="cmp-pago"><div><b>Forma de pago</b></div><div>' + formaTxt + '</div>' +
-        '<div style="margin-top:6px">Valor: <b>' + money(total) + '</b></div></div>' +
-      '<div class="cmp-tot">' +
-        '<div><span>Subtotal 15%</span><b>' + money(subtotal) + '</b></div>' +
-        '<div><span>Subtotal 0%</span><b>$0.00</b></div>' +
-        '<div><span>Descuento</span><b>$0.00</b></div>' +
-        '<div><span>IVA 15%</span><b>' + money(iva) + '</b></div>' +
-        '<div class="cmp-total"><span>VALOR TOTAL</span><b>' + money(total) + '</b></div>' +
+      '<table class="ride-items"><thead><tr>' +
+        '<th>Cód. Principal</th><th>Cant.</th><th>Descripción</th>' +
+        '<th class="num">P. Unitario</th><th class="num">Descuento</th><th class="num">Subtotal</th>' +
+        '</tr></thead><tbody>' + filas + '</tbody></table>' +
+      '<div class="ride-bottom">' +
+        '<div class="ride-adic">' +
+          '<div class="ride-sech">Información Adicional</div>' +
+          '<div class="ride-fp"><b>Forma de Pago</b><span class="num"><b>Valor</b></span></div>' +
+          '<div class="ride-fp"><span>' + formaTxt + '</span><span class="num">' + money(total) + '</span></div>' +
+        '</div>' +
+        '<div class="ride-tot">' +
+          row('Subtotal 15%', money(subtotal)) +
+          row('Subtotal 0%', '$0.00') +
+          row('Subtotal no objeto de IVA', '$0.00') +
+          row('Subtotal Exento de IVA', '$0.00') +
+          row('Subtotal Sin Impuestos', money(subtotal)) +
+          row('Descuento', '$0.00') +
+          row('ICE', '$0.00') +
+          row('IVA 15%', money(iva)) +
+          row('IRBPNR', '$0.00') +
+          row('Propina', '$0.00') +
+          '<div class="ride-vt"><span>VALOR TOTAL</span><b>' + money(total) + '</b></div>' +
+        '</div>' +
       '</div>' +
-    '</div>' +
-    '<div class="cmp-foot">Documento provisional generado en el local. La factura ' +
-      'electrónica autorizada por el SRI se enviará al correo del cliente.</div>';
+      '<div class="ride-foot">Documento provisional generado en el local. ' +
+        'La factura electrónica autorizada por el SRI se enviará al correo del cliente.</div>' +
+    '</div>';
 
   guardarLog(cli, numProv, total);
   show("#screen-result");
