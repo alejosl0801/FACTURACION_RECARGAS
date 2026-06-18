@@ -434,10 +434,8 @@ function guardarLog(payload, respuesta, ok) {
 renderProductos();
 renderCarrito();
 
-/* Limpieza: si quedó un service worker viejo cacheando la app,
-   forzar su actualización (sw.js ahora se autoelimina). */
+/* Registrar el service worker (network-first): hace la app instalable
+   y siempre muestra la última versión. */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations()
-    .then((regs) => regs.forEach((r) => r.update()))
-    .catch(() => {});
+  navigator.serviceWorker.register("sw.js").catch(() => {});
 }
