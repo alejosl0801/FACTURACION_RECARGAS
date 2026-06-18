@@ -177,7 +177,7 @@ input:focus { outline: none; border-color: var(--rojo); }
 .ride-rs { font-weight: 800; font-size: 13px; }
 .ride-emisor > div { margin: 1px 0; }
 .ride-doc { width: 48%; padding: 12px; border-left: 1px solid #ccc; }
-.ride-tipo { font-size: 22px; font-weight: 800; color: #333; letter-spacing: .5px; margin-bottom: 6px; }
+.ride-tipo { font-size: 30px; font-weight: 800; color: #1a1a1a; letter-spacing: 1px; margin-bottom: 8px; }
 .ride-barras { padding: 0; }
 .ride-barras svg { width: 100%; height: 48px; }
 .ride-barras-txt { font-family: monospace; font-size: 10px; letter-spacing: 1px; margin-bottom: 6px; }

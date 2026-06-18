@@ -301,7 +301,7 @@ function generarComprobante() {
 
   // N° de comprobante y código de control INTERNO del local (NO son del SRI)
   const numProv = CONFIG.EMISOR.establecimiento + "-" + CONFIG.EMISOR.puntoEmision + "-" + pad(seq, 9);
-  const codInterno = "PRV" + ymd + pad(seq, 6);
+  const codInterno = "PVF" + ymd + pad(seq, 6);
 
   const cli = {
     id: $("#cliente-id").value.trim(),
@@ -345,14 +345,12 @@ function generarComprobante() {
           '<div>EMISIÓN: NORMAL</div>' +
         '</div>' +
         '<div class="ride-doc">' +
-          '<div class="ride-tipo">COMPROBANTE PROVISIONAL</div>' +
+          '<div class="ride-tipo">PROFORMA</div>' +
           '<div class="ride-barras">' + barras + '</div>' +
-          '<div class="ride-barras-txt">' + codInterno + '</div>' +
           '<div class="ride-docbox">' +
             '<div><span>R.U.C.:</span> <b>' + E.ruc + '</b></div>' +
             '<div><span>No.:</span> <b>' + numProv + '</b></div>' +
-            '<div class="ride-ci">N° DE CONTROL INTERNO <em>(propio del local · no es autorización del SRI)</em></div>' +
-            '<div class="ride-cod">' + codInterno + '</div>' +
+            '<div><span>Cód.:</span> <span class="ride-cod">' + codInterno + '</span></div>' +
             '<div><span>FECHA Y HORA:</span> ' + fechaTxt + ' ' + horaTxt + '</div>' +
           '</div>' +
         '</div>' +
