@@ -36,12 +36,11 @@ const PRODUCTOS = [
   { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.50,   cat: "PQS" },
   { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00,   cat: "PQS" },
   { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00,  cat: "PQS" },
-  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 20.00,  cat: "PQS" },
+  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 18.00,  cat: "PQS" },
   // --- CO2 (precio por defecto = libras × $1) ---
   { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00,   cat: "CO2" },
   { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00,  cat: "CO2" },
-  { cod: "REC15CO2",  nombre: "Recarga 15 lb CO2",   precio: 15.00,  cat: "CO2" },
-  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 20.00,  cat: "CO2" }
+  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 18.00,  cat: "CO2" }
 ];
 
 /* ============ ESTADO ============ */
