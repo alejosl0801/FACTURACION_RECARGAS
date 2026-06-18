@@ -146,6 +146,16 @@ $("#btn-sri").addEventListener("click", buscarSRI);
 $("#cliente-id").addEventListener("input", actualizarBotonFacturar);
 $("#cliente-nombre").addEventListener("input", actualizarBotonFacturar);
 
+/* Enter en cédula/RUC busca en el SRI; al salir del campo también
+   (si tiene 10 o 13 dígitos). Sirve igual para cédula y RUC. */
+$("#cliente-id").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); buscarSRI(); }
+});
+$("#cliente-id").addEventListener("change", () => {
+  const n = $("#cliente-id").value.trim().length;
+  if (n === 10 || n === 13) buscarSRI();
+});
+
 /* tipo de identificación según longitud */
 function tipoIdentificacion(id) {
   if (id === "9999999999999") return "07";  // consumidor final
@@ -181,15 +191,13 @@ function renderProductos(filtro = "") {
   }
 }
 
-$("#buscar").addEventListener("input", (e) => renderProductos(e.target.value));
-
 /* pestañas de categoría PQS / CO2 */
 document.querySelectorAll(".cat-tab").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".cat-tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     categoriaActiva = btn.dataset.cat;
-    renderProductos($("#buscar").value);
+    renderProductos();
   });
 });
 
@@ -345,8 +353,15 @@ function construirPayload(ctx) {
 
 $("#btn-facturar").addEventListener("click", facturar);
 
+let emitiendo = false; // evita doble emisión por doble toque
+
 async function facturar() {
+  if (emitiendo) return;
   const ctx = contextoVenta();
+  // Confirmación clara antes de emitir (evita facturas por error)
+  if (!window.confirm("¿Emitir factura por " + money(ctx.total) + " a " + ctx.cli.nombre + "?")) return;
+
+  emitiendo = true;
   $("#loading").classList.add("active");
   let data;
   try {
@@ -361,6 +376,7 @@ async function facturar() {
     data = { error: String(err) };
   }
   $("#loading").classList.remove("active");
+  emitiendo = false;
 
   const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso || data.clave)) || "";
   if (clave) {
@@ -483,7 +499,6 @@ $("#btn-nueva").addEventListener("click", () => {
   $("#cliente-dir").value = "";
   $("#cliente-tel").value = "";
   $("#cliente-email").value = "";
-  $("#buscar").value = "";
   setSriMsg("");
   renderProductos();
   renderCarrito();
