@@ -80,24 +80,24 @@ async function fetchSRI(url) {
 }
 
 /* Busca, dentro de un objeto JSON (aunque esté anidado), el valor de la
-   primera clave que coincida exactamente con alguno de los nombres dados. */
-function deepFind(obj, clave) {
+   primera clave cuyo nombre CONTENGA el término dado (ignora N/D y vacíos). */
+function deepFind(obj, termino) {
   if (!obj || typeof obj !== "object") return "";
   for (const k of Object.keys(obj)) {
     const v = obj[k];
     if (v && typeof v === "object") {
-      const r = deepFind(v, clave);
+      const r = deepFind(v, termino);
       if (r) return r;
-    } else if (k.toLowerCase() === clave) {
+    } else if (k.toLowerCase().includes(termino)) {
       const s = (v == null ? "" : String(v)).trim();
       if (s && s.toUpperCase() !== "N/D") return s;
     }
   }
   return "";
 }
-function buscarCampo(obj, claves) {
-  for (const c of claves) {
-    const v = deepFind(obj, c);
+function buscarCampo(obj, terminos) {
+  for (const t of terminos) {
+    const v = deepFind(obj, t);
     if (v) return v;
   }
   return "";
@@ -336,7 +336,9 @@ async function facturar() {
   const payload = construirPayload();
 
   try {
-    const resp = await fetch(CONFIG.PROXY_URL, {
+    // El worker reenvía a azur.com.ec/plataforma/api/v2/factura/emision
+    // y le agrega el token en privado.
+    const resp = await fetch(CONFIG.PROXY_URL + "factura/emision", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
