@@ -187,6 +187,7 @@ input:focus { outline: none; border-color: var(--rojo); }
 .ride-ci { font-size: 9px; font-weight: 700; color: var(--rojo); margin-top: 4px !important; }
 .ride-ci em { color: #777; font-weight: 500; }
 .ride-cod { font-family: monospace; font-size: 13px; font-weight: 700; word-break: break-all; }
+.ride-lbl { font-size: 9px; font-weight: 700; color: #333; margin-top: 4px; }
 
 /* Banda de cliente (gris) */
 .ride-cliente { background: #ececec; padding: 8px 12px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
