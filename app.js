@@ -11,7 +11,10 @@ const CONFIG = {
   TOKEN: "API_1851_2064_5fcfa1b47f430",
 
   // Consulta de contribuyentes en el SRI (Ecuador) — catastro público.
-  // Si el navegador bloquea por CORS, enrutar por el worker (ver README).
+  // El SRI no manda cabeceras CORS, así que la consulta se enruta por un
+  // proxy CORS público. Si algún día querés algo más robusto, cambiá
+  // CORS_PROXY por una ruta de tu propio Worker de Cloudflare.
+  CORS_PROXY: "https://api.allorigins.win/raw?url=",
   SRI_RUC_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc=",
   SRI_ESTAB_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/Establecimiento/consultarEstablecimientosPorNumeroRuc?numeroRuc=",
 
@@ -36,30 +39,30 @@ const CONFIG = {
      se deja un solo registro por recarga.                            */
 const PRODUCTOS = [
   // --- PQS (precio por defecto = libras × $1) ---
-  { cod: "REC2.2PQS", nombre: "Recarga 2.2 lb PQS",  precio: 2.20 },
-  { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.00 },
-  { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00 },
-  { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00 },
-  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 20.00 },
-  { cod: "REC50PQS",  nombre: "Recarga 50 lb PQS",   precio: 50.00 },
-  { cod: "REC75PQS",  nombre: "Recarga 75 lb PQS",   precio: 75.00 },
-  { cod: "REC100PQS", nombre: "Recarga 100 lb PQS",  precio: 100.00 },
+  { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.50,   cat: "PQS" },
+  { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00,   cat: "PQS" },
+  { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00,  cat: "PQS" },
+  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 20.00,  cat: "PQS" },
+  { cod: "REC50PQS",  nombre: "Recarga 50 lb PQS",   precio: 50.00,  cat: "PQS" },
+  { cod: "REC75PQS",  nombre: "Recarga 75 lb PQS",   precio: 75.00,  cat: "PQS" },
+  { cod: "REC100PQS", nombre: "Recarga 100 lb PQS",  precio: 100.00, cat: "PQS" },
   // --- CO2 (precio por defecto = libras × $1) ---
-  { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00 },
-  { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00 },
-  { cod: "REC15CO2",  nombre: "Recarga 15 lb CO2",   precio: 15.00 },
-  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 20.00 },
-  { cod: "REC26CO2",  nombre: "Recarga 26 lb CO2",   precio: 26.00 },
-  { cod: "REC40CO2",  nombre: "Recarga 40 lb CO2",   precio: 40.00 },
-  { cod: "REC50CO2",  nombre: "Recarga 50 lb CO2",   precio: 50.00 },
-  { cod: "REC75CO2",  nombre: "Recarga 75 lb CO2",   precio: 75.00 },
-  { cod: "REC100CO2", nombre: "Recarga 100 lb CO2",  precio: 100.00 }
+  { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00,   cat: "CO2" },
+  { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00,  cat: "CO2" },
+  { cod: "REC15CO2",  nombre: "Recarga 15 lb CO2",   precio: 15.00,  cat: "CO2" },
+  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 20.00,  cat: "CO2" },
+  { cod: "REC26CO2",  nombre: "Recarga 26 lb CO2",   precio: 26.00,  cat: "CO2" },
+  { cod: "REC40CO2",  nombre: "Recarga 40 lb CO2",   precio: 40.00,  cat: "CO2" },
+  { cod: "REC50CO2",  nombre: "Recarga 50 lb CO2",   precio: 50.00,  cat: "CO2" },
+  { cod: "REC75CO2",  nombre: "Recarga 75 lb CO2",   precio: 75.00,  cat: "CO2" },
+  { cod: "REC100CO2", nombre: "Recarga 100 lb CO2",  precio: 100.00, cat: "CO2" }
 ];
 
 /* ============ ESTADO ============ */
 let carrito = {};            // { cod: cantidad }
 let precioUnit = {};         // { cod: precio unitario actual (editable) }
 let formaPago = "efectivo";
+let categoriaActiva = "PQS"; // pestaña de productos visible: "PQS" o "CO2"
 
 /* ============ HELPERS ============ */
 const $ = (sel) => document.querySelector(sel);
@@ -80,6 +83,11 @@ function setSriMsg(texto, esError) {
   el.className = "sri-msg" + (esError ? " error" : "");
 }
 
+/* envuelve una URL del SRI a través del proxy CORS */
+function viaCors(url) {
+  return CONFIG.CORS_PROXY + encodeURIComponent(url);
+}
+
 async function buscarSRI() {
   const raw = $("#cliente-id").value.trim();
   if (raw.length !== 10 && raw.length !== 13) {
@@ -96,7 +104,7 @@ async function buscarSRI() {
   setSriMsg("");
 
   try {
-    const r = await fetch(CONFIG.SRI_RUC_URL + ruc);
+    const r = await fetch(viaCors(CONFIG.SRI_RUC_URL + ruc));
     if (!r.ok) throw new Error("HTTP " + r.status);
     const data = await r.json();
     const c = Array.isArray(data) ? data[0] : data;
@@ -110,7 +118,7 @@ async function buscarSRI() {
 
     // Dirección desde el establecimiento matriz
     try {
-      const re = await fetch(CONFIG.SRI_ESTAB_URL + ruc);
+      const re = await fetch(viaCors(CONFIG.SRI_ESTAB_URL + ruc));
       if (re.ok) {
         const est = await re.json();
         const arr = est && est.establecimientos ? est.establecimientos : est;
@@ -154,13 +162,14 @@ function renderProductos(filtro = "") {
   cont.innerHTML = "";
   const f = filtro.trim().toLowerCase();
   PRODUCTOS
-    .filter((p) => p.nombre.toLowerCase().includes(f))
+    .filter((p) => p.cat === categoriaActiva)
+    .filter((p) => p.nombre.toLowerCase().includes(f) || p.cod.toLowerCase().includes(f))
     .forEach((p) => {
       const div = document.createElement("div");
       div.className = "prod";
       div.innerHTML = `
         <div class="prod-info">
-          <div class="prod-nombre">${p.nombre}</div>
+          <div class="prod-nombre">${p.nombre} <span class="prod-cod">${p.cod}</span></div>
           <div class="prod-precio">${money(p.precio)}</div>
         </div>
         <div class="prod-add">＋</div>`;
@@ -173,6 +182,16 @@ function renderProductos(filtro = "") {
 }
 
 $("#buscar").addEventListener("input", (e) => renderProductos(e.target.value));
+
+/* pestañas de categoría PQS / CO2 */
+document.querySelectorAll(".cat-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".cat-tab").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    categoriaActiva = btn.dataset.cat;
+    renderProductos($("#buscar").value);
+  });
+});
 
 function agregar(cod) {
   carrito[cod] = (carrito[cod] || 0) + 1;
@@ -209,7 +228,7 @@ function renderCarrito() {
     const div = document.createElement("div");
     div.className = "cart-item";
     div.innerHTML = `
-      <div class="cart-name">${p.nombre}
+      <div class="cart-name">${p.nombre} <span class="prod-cod">${p.cod}</span>
         <small class="precio-edit">$ <input type="number" inputmode="decimal" step="0.01" min="0"
           value="${precio.toFixed(2)}" data-act="precio" /> c/u</small>
       </div>

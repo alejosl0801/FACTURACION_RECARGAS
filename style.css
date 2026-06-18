@@ -63,6 +63,20 @@ input:focus { outline: none; border-color: var(--rojo); }
 .btn-secondary:active { background: var(--gris-borde); }
 
 /* ====== PRODUCTOS ====== */
+.cat-tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+.cat-tab {
+  flex: 1; padding: 14px; font-size: 17px; font-weight: 700;
+  background: var(--gris); border: 2px solid var(--gris-borde);
+  border-radius: 10px; cursor: pointer; color: var(--texto);
+}
+.cat-tab.active { background: var(--rojo); color: #fff; border-color: var(--rojo); }
+
+.prod-cod {
+  display: inline-block; font-size: 12px; font-weight: 700; color: var(--rojo);
+  background: #fdecea; padding: 2px 7px; border-radius: 6px; margin-left: 4px;
+  font-family: monospace; vertical-align: middle;
+}
+
 .lista-productos { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .prod {
   display: flex; align-items: center; justify-content: space-between;
