@@ -20,7 +20,8 @@ extintores desde el celular. Pensada para una persona no técnica en el local.
 - Proxy Cloudflare Worker: `https://azur-proxy.alejosl0801.workers.dev/`
   - Se hace `POST /` con JSON; el worker reenvía a
     `https://azur.com.ec/plataforma/api/v2/factura/emision` y añade el token.
-- Token: `API_1851_2064_5fcfa1b47f430`
+- Token y `api_key2` del SRI: **viven solo en el worker de Cloudflare**, nunca
+  en este repo ni en el código del cliente (son secretos).
 - Respuesta OK: `{ "creado": "true", "claveacceso": "..." }`
 - IVA 15% → `tipo_iva: 4`. `tipoproducto: 1`. `codigoDoc: "01"` (factura).
 - Tipos de identificación: `"04"` RUC (13 díg), `"05"` cédula (10 díg),

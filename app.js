@@ -6,23 +6,14 @@
 
 /* ============ CONFIGURACIÓN ============ */
 const CONFIG = {
-  // Proxy Cloudflare que reenvía a Azur (evita CORS y oculta el token).
+  // Proxy Cloudflare que reenvía a Azur (evita CORS y guarda los secretos).
+  // El worker añade el token/clave; por eso NO van en este código público.
   PROXY_URL: "https://azur-proxy.alejosl0801.workers.dev/",
-  TOKEN: "API_1851_2064_5fcfa1b47f430",
 
-  // Consulta de contribuyentes en el SRI (Ecuador) — catastro público.
-  // El SRI no manda cabeceras CORS. Solución ROBUSTA: enrutar por tu propio
-  // Worker de Cloudflare. Poné aquí la URL de tu ruta SRI y se usará primero
-  // (sin CORS, lo más estable). Ej: "https://azur-proxy.alejosl0801.workers.dev/sri?url="
-  WORKER_SRI: "",
-  // Respaldo: proxies CORS públicos. Se prueban en orden hasta que uno funcione.
-  CORS_PROXIES: [
-    (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
-    (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
-    (u) => "https://thingproxy.freeboard.io/fetch/" + u
-  ],
-  SRI_RUC_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc=",
-  SRI_ESTAB_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/Establecimiento/consultarEstablecimientosPorNumeroRuc?numeroRuc=",
+  // Consulta al SRI: va por TU worker (ruta /sri). El worker le agrega la
+  // api_key2 en privado y reenvía a azur.com.ec/acciones/conexionconelsri.
+  // Así la clave nunca queda en la página ni pasa por terceros.
+  SRI_URL: "https://azur-proxy.alejosl0801.workers.dev/sri",
 
   IVA: 0.15,          // 15%
   TIPO_IVA: 4,        // código Azur para IVA 15%
@@ -81,25 +72,35 @@ function setSriMsg(texto, esError) {
   el.className = "sri-msg" + (esError ? " error" : "");
 }
 
-/* Trae una URL del SRI sorteando CORS: prueba tu Worker (si está configurado)
-   y luego los proxies públicos, en orden, hasta que uno responda JSON válido. */
+/* Consulta el SRI a través de tu worker de Cloudflare (ruta /sri). */
 async function fetchSRI(url) {
-  const intentos = [];
-  if (CONFIG.WORKER_SRI) intentos.push(CONFIG.WORKER_SRI + encodeURIComponent(url));
-  CONFIG.CORS_PROXIES.forEach((build) => intentos.push(build(url)));
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return JSON.parse(await r.text());
+}
 
-  let ultimoError = "sin respuesta";
-  for (const u of intentos) {
-    try {
-      const r = await fetch(u);
-      if (!r.ok) { ultimoError = "HTTP " + r.status; continue; }
-      const txt = await r.text();
-      return JSON.parse(txt);
-    } catch (e) {
-      ultimoError = (e && e.message) ? e.message : String(e);
+/* Busca, dentro de un objeto JSON (aunque esté anidado), el valor de la
+   primera clave que coincida exactamente con alguno de los nombres dados. */
+function deepFind(obj, clave) {
+  if (!obj || typeof obj !== "object") return "";
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v && typeof v === "object") {
+      const r = deepFind(v, clave);
+      if (r) return r;
+    } else if (k.toLowerCase() === clave) {
+      const s = (v == null ? "" : String(v)).trim();
+      if (s && s.toUpperCase() !== "N/D") return s;
     }
   }
-  throw new Error(ultimoError);
+  return "";
+}
+function buscarCampo(obj, claves) {
+  for (const c of claves) {
+    const v = deepFind(obj, c);
+    if (v) return v;
+  }
+  return "";
 }
 
 async function buscarSRI() {
@@ -108,8 +109,7 @@ async function buscarSRI() {
     setSriMsg("Ingresá una cédula (10 dígitos) o RUC (13 dígitos).", true);
     return;
   }
-  // persona natural por cédula → RUC = cédula + "001"
-  const ruc = raw.length === 10 ? raw + "001" : raw;
+  const tipo = raw.length === 13 ? "04" : "05"; // 04 = RUC, 05 = cédula
 
   const btn = $("#btn-sri");
   const txtOriginal = btn.textContent;
@@ -118,29 +118,34 @@ async function buscarSRI() {
   setSriMsg("");
 
   try {
-    const data = await fetchSRI(CONFIG.SRI_RUC_URL + ruc);
+    const url = CONFIG.SRI_URL
+      + "?ruc=" + encodeURIComponent(raw)
+      + "&tipo=" + tipo;
+
+    const data = await fetchSRI(url);
     const c = Array.isArray(data) ? data[0] : data;
 
-    if (!c || !c.razonSocial) {
+    const nombre = buscarCampo(c, ["razonsocial", "razon_social", "razon", "nombres", "nombre", "denominacion", "contribuyente"]);
+    const direccion = buscarCampo(c, ["direccion", "direccioncompleta", "direccionmatriz", "direccionestablecimiento"]);
+    const telefono = buscarCampo(c, ["telefono", "telefono1", "celular", "movil"]);
+    const correo = buscarCampo(c, ["correo", "correoelectronico", "email", "mail"]);
+
+    if (!nombre) {
       setSriMsg("No se encontró ese número en el SRI. Revisá los dígitos.", true);
       return;
     }
 
-    $("#cliente-nombre").value = c.razonSocial;
+    $("#cliente-nombre").value = nombre;
+    if (direccion) $("#cliente-dir").value = direccion;
+    if (telefono) $("#cliente-tel").value = telefono;
+    if (correo) $("#cliente-email").value = correo;
 
-    // Dirección desde el establecimiento matriz
-    try {
-      const est = await fetchSRI(CONFIG.SRI_ESTAB_URL + ruc);
-      const arr = est && est.establecimientos ? est.establecimientos : est;
-      if (Array.isArray(arr)) {
-        const matriz = arr.find((e) => e.matriz === "SI" || e.tipoEstablecimiento === "MAT") || arr[0];
-        if (matriz && matriz.direccionCompleta) {
-          $("#cliente-dir").value = matriz.direccionCompleta;
-        }
-      }
-    } catch (e) { /* dirección opcional */ }
-
-    setSriMsg("✓ Datos cargados del SRI. El SRI no publica teléfono ni correo: complétalos a mano si los necesitás.");
+    const faltan = [];
+    if (!telefono) faltan.push("teléfono");
+    if (!correo) faltan.push("correo");
+    setSriMsg(faltan.length
+      ? "✓ Datos cargados. El SRI no tiene " + faltan.join(" ni ") + " de este cliente: complétalo a mano si lo necesitás."
+      : "✓ Datos cargados del SRI.");
     actualizarBotonFacturar();
   } catch (err) {
     setSriMsg("No se pudo consultar el SRI: " + (err.message || err) + ". Escribí los datos a mano.", true);
@@ -307,7 +312,7 @@ function construirPayload() {
   });
 
   return {
-    token: CONFIG.TOKEN,
+    // El token de Azur lo agrega el worker de Cloudflare (no va en cliente).
     codigoDoc: CONFIG.CODIGO_DOC,
     establecimiento: CONFIG.EMISOR.establecimiento,
     puntoEmision: CONFIG.EMISOR.puntoEmision,
