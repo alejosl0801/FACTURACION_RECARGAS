@@ -11,10 +11,16 @@ const CONFIG = {
   TOKEN: "API_1851_2064_5fcfa1b47f430",
 
   // Consulta de contribuyentes en el SRI (Ecuador) — catastro público.
-  // El SRI no manda cabeceras CORS, así que la consulta se enruta por un
-  // proxy CORS público. Si algún día querés algo más robusto, cambiá
-  // CORS_PROXY por una ruta de tu propio Worker de Cloudflare.
-  CORS_PROXY: "https://api.allorigins.win/raw?url=",
+  // El SRI no manda cabeceras CORS. Solución ROBUSTA: enrutar por tu propio
+  // Worker de Cloudflare. Poné aquí la URL de tu ruta SRI y se usará primero
+  // (sin CORS, lo más estable). Ej: "https://azur-proxy.alejosl0801.workers.dev/sri?url="
+  WORKER_SRI: "",
+  // Respaldo: proxies CORS públicos. Se prueban en orden hasta que uno funcione.
+  CORS_PROXIES: [
+    (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+    (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+    (u) => "https://thingproxy.freeboard.io/fetch/" + u
+  ],
   SRI_RUC_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc=",
   SRI_ESTAB_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/Establecimiento/consultarEstablecimientosPorNumeroRuc?numeroRuc=",
 
@@ -43,19 +49,11 @@ const PRODUCTOS = [
   { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00,   cat: "PQS" },
   { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00,  cat: "PQS" },
   { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 20.00,  cat: "PQS" },
-  { cod: "REC50PQS",  nombre: "Recarga 50 lb PQS",   precio: 50.00,  cat: "PQS" },
-  { cod: "REC75PQS",  nombre: "Recarga 75 lb PQS",   precio: 75.00,  cat: "PQS" },
-  { cod: "REC100PQS", nombre: "Recarga 100 lb PQS",  precio: 100.00, cat: "PQS" },
   // --- CO2 (precio por defecto = libras × $1) ---
   { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00,   cat: "CO2" },
   { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00,  cat: "CO2" },
   { cod: "REC15CO2",  nombre: "Recarga 15 lb CO2",   precio: 15.00,  cat: "CO2" },
-  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 20.00,  cat: "CO2" },
-  { cod: "REC26CO2",  nombre: "Recarga 26 lb CO2",   precio: 26.00,  cat: "CO2" },
-  { cod: "REC40CO2",  nombre: "Recarga 40 lb CO2",   precio: 40.00,  cat: "CO2" },
-  { cod: "REC50CO2",  nombre: "Recarga 50 lb CO2",   precio: 50.00,  cat: "CO2" },
-  { cod: "REC75CO2",  nombre: "Recarga 75 lb CO2",   precio: 75.00,  cat: "CO2" },
-  { cod: "REC100CO2", nombre: "Recarga 100 lb CO2",  precio: 100.00, cat: "CO2" }
+  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 20.00,  cat: "CO2" }
 ];
 
 /* ============ ESTADO ============ */
@@ -83,9 +81,25 @@ function setSriMsg(texto, esError) {
   el.className = "sri-msg" + (esError ? " error" : "");
 }
 
-/* envuelve una URL del SRI a través del proxy CORS */
-function viaCors(url) {
-  return CONFIG.CORS_PROXY + encodeURIComponent(url);
+/* Trae una URL del SRI sorteando CORS: prueba tu Worker (si está configurado)
+   y luego los proxies públicos, en orden, hasta que uno responda JSON válido. */
+async function fetchSRI(url) {
+  const intentos = [];
+  if (CONFIG.WORKER_SRI) intentos.push(CONFIG.WORKER_SRI + encodeURIComponent(url));
+  CONFIG.CORS_PROXIES.forEach((build) => intentos.push(build(url)));
+
+  let ultimoError = "sin respuesta";
+  for (const u of intentos) {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) { ultimoError = "HTTP " + r.status; continue; }
+      const txt = await r.text();
+      return JSON.parse(txt);
+    } catch (e) {
+      ultimoError = (e && e.message) ? e.message : String(e);
+    }
+  }
+  throw new Error(ultimoError);
 }
 
 async function buscarSRI() {
@@ -104,9 +118,7 @@ async function buscarSRI() {
   setSriMsg("");
 
   try {
-    const r = await fetch(viaCors(CONFIG.SRI_RUC_URL + ruc));
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const data = await r.json();
+    const data = await fetchSRI(CONFIG.SRI_RUC_URL + ruc);
     const c = Array.isArray(data) ? data[0] : data;
 
     if (!c || !c.razonSocial) {
@@ -118,15 +130,12 @@ async function buscarSRI() {
 
     // Dirección desde el establecimiento matriz
     try {
-      const re = await fetch(viaCors(CONFIG.SRI_ESTAB_URL + ruc));
-      if (re.ok) {
-        const est = await re.json();
-        const arr = est && est.establecimientos ? est.establecimientos : est;
-        if (Array.isArray(arr)) {
-          const matriz = arr.find((e) => e.matriz === "SI" || e.tipoEstablecimiento === "MAT") || arr[0];
-          if (matriz && matriz.direccionCompleta) {
-            $("#cliente-dir").value = matriz.direccionCompleta;
-          }
+      const est = await fetchSRI(CONFIG.SRI_ESTAB_URL + ruc);
+      const arr = est && est.establecimientos ? est.establecimientos : est;
+      if (Array.isArray(arr)) {
+        const matriz = arr.find((e) => e.matriz === "SI" || e.tipoEstablecimiento === "MAT") || arr[0];
+        if (matriz && matriz.direccionCompleta) {
+          $("#cliente-dir").value = matriz.direccionCompleta;
         }
       }
     } catch (e) { /* dirección opcional */ }
@@ -134,7 +143,7 @@ async function buscarSRI() {
     setSriMsg("✓ Datos cargados del SRI. El SRI no publica teléfono ni correo: complétalos a mano si los necesitás.");
     actualizarBotonFacturar();
   } catch (err) {
-    setSriMsg("No se pudo consultar el SRI (puede ser CORS o sin internet). Escribí los datos a mano.", true);
+    setSriMsg("No se pudo consultar el SRI: " + (err.message || err) + ". Escribí los datos a mano.", true);
   } finally {
     btn.disabled = false;
     btn.textContent = txtOriginal;
