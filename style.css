@@ -70,6 +70,15 @@ input:focus { outline: none; border-color: var(--rojo); }
 .row { display: flex; gap: 10px; align-items: flex-end; }
 .col { flex: 1; }
 
+.sri-msg { font-size: 13px; color: var(--verde-osc); margin-top: 8px; min-height: 16px; font-weight: 600; }
+.sri-msg.error { color: var(--rojo); }
+
+.precio-edit { display: inline-flex; align-items: center; gap: 4px; color: var(--texto-sec); font-weight: 400; margin-top: 4px; }
+.precio-edit input {
+  width: 78px; padding: 6px 8px; font-size: 15px; font-weight: 700;
+  border: 2px solid var(--gris-borde); border-radius: 8px; text-align: right;
+}
+
 .btn-secondary {
   white-space: nowrap; padding: 14px 16px; font-size: 15px; font-weight: 600;
   background: var(--gris); color: var(--texto); border: 2px solid var(--gris-borde);

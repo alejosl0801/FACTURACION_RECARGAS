@@ -9,9 +9,21 @@ complejo, sin carrito complicado, sin stock.
 ## Flujo
 
 1. **PIN** de 4 dígitos para entrar.
-2. **Cliente** — cédula / RUC (o "Consumidor final" de un toque) + nombre.
-3. **Productos** — lista fija con buscador; se agregan con cantidad.
+2. **Cliente** — se escribe la cédula/RUC y con **🔎 Buscar en SRI** se autocompletan
+   nombre/razón social y dirección desde el catastro público del SRI.
+3. **Productos** — lista con buscador (códigos reales de Azur); se agregan con
+   cantidad. El **precio por defecto** de PQS/CO2 es `libras × $1` (ej. REC10PQS = $10)
+   y es **editable** en el carrito para aplicar descuentos.
 4. **FACTURAR** — botón verde gigante → llama a Azur → muestra ✅ y la clave de acceso.
+
+### Búsqueda en el SRI
+
+`buscarSRI()` consulta el catastro público del SRI
+(`ConsolidadoContribuyente` + `Establecimiento`) y llena **nombre/razón social** y
+**dirección**. El SRI **no publica teléfono ni correo**, así que esos campos se
+escriben a mano. Si el navegador bloquea la consulta por **CORS**, hay que enrutarla
+por el Worker de Cloudflare (cambiar `CONFIG.SRI_RUC_URL` / `SRI_ESTAB_URL` a una ruta
+del worker que reenvíe a `srienlinea.sri.gob.ec`).
 
 ## Estructura
 

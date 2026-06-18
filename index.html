@@ -53,17 +53,20 @@
         <label>Cédula / RUC</label>
         <div class="row">
           <input id="cliente-id" type="tel" inputmode="numeric" placeholder="Cédula o RUC" autocomplete="off" />
-          <button id="btn-final" class="btn-secondary">Consumidor final</button>
+          <button id="btn-sri" class="btn-secondary">🔎 Buscar en SRI</button>
         </div>
+        <p id="sri-msg" class="sri-msg"></p>
         <label>Nombre / Razón social</label>
-        <input id="cliente-nombre" type="text" placeholder="Nombre del cliente" autocomplete="off" />
+        <input id="cliente-nombre" type="text" placeholder="Se llena con el SRI" autocomplete="off" />
+        <label>Dirección</label>
+        <input id="cliente-dir" type="text" placeholder="Se llena con el SRI" autocomplete="off" />
         <div class="row">
           <div class="col">
-            <label>Teléfono (opcional)</label>
+            <label>Teléfono</label>
             <input id="cliente-tel" type="tel" inputmode="numeric" placeholder="09..." autocomplete="off" />
           </div>
           <div class="col">
-            <label>Email (opcional)</label>
+            <label>Email</label>
             <input id="cliente-email" type="email" placeholder="correo@..." autocomplete="off" />
           </div>
         </div>

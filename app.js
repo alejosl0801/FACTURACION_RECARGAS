@@ -13,6 +13,11 @@ const CONFIG = {
   PROXY_URL: "https://azur-proxy.alejosl0801.workers.dev/",
   TOKEN: "API_1851_2064_5fcfa1b47f430",
 
+  // Consulta de contribuyentes en el SRI (Ecuador) — catastro público.
+  // Si el navegador bloquea por CORS, enrutar por el worker (ver README).
+  SRI_RUC_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc=",
+  SRI_ESTAB_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/Establecimiento/consultarEstablecimientosPorNumeroRuc?numeroRuc=",
+
   IVA: 0.15,          // 15%
   TIPO_IVA: 4,        // código Azur para IVA 15%
   TIPO_PRODUCTO: 1,
@@ -26,23 +31,45 @@ const CONFIG = {
   }
 };
 
-/* ============ PRODUCTOS (lista fija, precios SIN IVA) ============
-   ⚠️ Precios estimados — confirmar con el dueño y ajustar.            */
+/* ============ PRODUCTOS (códigos REALES de Azur) ============
+   - `cod` = código EXACTO con el que se factura en Azur. NO cambiar.
+   - Regla de precio por defecto: cada libra de PQS o CO2 = $1
+     (ej. REC10PQS = $10, REC5CO2 = $5). Editable en el carrito.
+   - Los duplicados de Azur (códigos terminados en "-") se omiten:
+     se deja un solo registro por recarga.                            */
 const PRODUCTOS = [
-  { cod: "REC-PQS-05",  nombre: "Recarga 5 LBS PQS",            precio: 8.00 },
-  { cod: "REC-PQS-10",  nombre: "Recarga 10 LBS PQS",           precio: 12.00 },
-  { cod: "REC-PQS-20",  nombre: "Recarga 20 LBS PQS",           precio: 18.00 },
-  { cod: "REC-PQS-50",  nombre: "Recarga 50 LBS PQS",           precio: 35.00 },
-  { cod: "REC-CO2-05",  nombre: "Recarga 5 LBS CO2",            precio: 14.00 },
-  { cod: "REC-CO2-10",  nombre: "Recarga 10 LBS CO2",           precio: 22.00 },
-  { cod: "REC-CO2-20",  nombre: "Recarga 20 LBS CO2 + Carro",   precio: 38.00 },
-  { cod: "REC-AGUA",    nombre: "Recarga 2.5 Gln Agua Química", precio: 10.00 },
-  { cod: "INSP",        nombre: "Inspección / Mantenimiento",   precio: 5.00 }
+  // --- PQS (precio por defecto = libras × $1) ---
+  { cod: "REC2.2PQS", nombre: "Recarga 2.2 lb PQS",  precio: 2.20 },
+  { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.00 },
+  { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00 },
+  { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00 },
+  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 20.00 },
+  { cod: "REC50PQS",  nombre: "Recarga 50 lb PQS",   precio: 50.00 },
+  { cod: "REC75PQS",  nombre: "Recarga 75 lb PQS",   precio: 75.00 },
+  { cod: "REC100PQS", nombre: "Recarga 100 lb PQS",  precio: 100.00 },
+  // --- CO2 (precio por defecto = libras × $1) ---
+  { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00 },
+  { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00 },
+  { cod: "REC15CO2",  nombre: "Recarga 15 lb CO2",   precio: 15.00 },
+  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 20.00 },
+  { cod: "REC26CO2",  nombre: "Recarga 26 lb CO2",   precio: 26.00 },
+  { cod: "REC40CO2",  nombre: "Recarga 40 lb CO2",   precio: 40.00 },
+  { cod: "REC50CO2",  nombre: "Recarga 50 lb CO2",   precio: 50.00 },
+  { cod: "REC75CO2",  nombre: "Recarga 75 lb CO2",   precio: 75.00 },
+  { cod: "REC100CO2", nombre: "Recarga 100 lb CO2",  precio: 100.00 },
+  // --- Otras recargas (precio por defecto = el de Azur, editable) ---
+  { cod: "RECNIT",    nombre: "Recarga Nitrógeno",          precio: 45.00 },
+  { cod: "RECFOAM",   nombre: "Recarga Espuma (Foam)",      precio: 35.00 },
+  { cod: "REC2.5AP",  nombre: "Recarga 2.5 Agua a Presión", precio: 17.00 },
+  { cod: "REC2C",     nombre: "Recarga REC2C",              precio: 15.00 },
+  { cod: "RECK",      nombre: "Recarga RECK",               precio: 98.80 },
+  { cod: "RecQ",      nombre: "Recarga RecQ",               precio: 14.00 }
 ];
 
 /* ============ ESTADO ============ */
 let pinActual = "";
 let carrito = {};            // { cod: cantidad }
+let precioUnit = {};         // { cod: precio unitario actual (editable) }
 let formaPago = "efectivo";
 
 /* ============ HELPERS ============ */
@@ -101,11 +128,67 @@ $("#btn-lock").addEventListener("click", () => {
 /* =====================================================================
    PANTALLA 2 — Cliente
    ===================================================================== */
-$("#btn-final").addEventListener("click", () => {
-  $("#cliente-id").value = "9999999999999";
-  $("#cliente-nombre").value = "CONSUMIDOR FINAL";
-  actualizarBotonFacturar();
-});
+/* --- Buscar contribuyente en el SRI por cédula/RUC --- */
+function setSriMsg(texto, esError) {
+  const el = $("#sri-msg");
+  el.textContent = texto || "";
+  el.className = "sri-msg" + (esError ? " error" : "");
+}
+
+async function buscarSRI() {
+  const raw = $("#cliente-id").value.trim();
+  if (raw.length !== 10 && raw.length !== 13) {
+    setSriMsg("Ingresá una cédula (10 dígitos) o RUC (13 dígitos).", true);
+    return;
+  }
+  // persona natural por cédula → RUC = cédula + "001"
+  const ruc = raw.length === 10 ? raw + "001" : raw;
+
+  const btn = $("#btn-sri");
+  const txtOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Buscando...";
+  setSriMsg("");
+
+  try {
+    const r = await fetch(CONFIG.SRI_RUC_URL + ruc);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    const c = Array.isArray(data) ? data[0] : data;
+
+    if (!c || !c.razonSocial) {
+      setSriMsg("No se encontró ese número en el SRI. Revisá los dígitos.", true);
+      return;
+    }
+
+    $("#cliente-nombre").value = c.razonSocial;
+
+    // Dirección desde el establecimiento matriz
+    try {
+      const re = await fetch(CONFIG.SRI_ESTAB_URL + ruc);
+      if (re.ok) {
+        const est = await re.json();
+        const arr = est && est.establecimientos ? est.establecimientos : est;
+        if (Array.isArray(arr)) {
+          const matriz = arr.find((e) => e.matriz === "SI" || e.tipoEstablecimiento === "MAT") || arr[0];
+          if (matriz && matriz.direccionCompleta) {
+            $("#cliente-dir").value = matriz.direccionCompleta;
+          }
+        }
+      }
+    } catch (e) { /* dirección opcional */ }
+
+    setSriMsg("✓ Datos cargados del SRI. El SRI no publica teléfono ni correo: complétalos a mano si los necesitás.");
+    actualizarBotonFacturar();
+  } catch (err) {
+    setSriMsg("No se pudo consultar el SRI (puede ser CORS o sin internet). Escribí los datos a mano.", true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = txtOriginal;
+  }
+}
+
+$("#btn-sri").addEventListener("click", buscarSRI);
 
 $("#cliente-id").addEventListener("input", actualizarBotonFacturar);
 $("#cliente-nombre").addEventListener("input", actualizarBotonFacturar);
@@ -148,12 +231,18 @@ $("#buscar").addEventListener("input", (e) => renderProductos(e.target.value));
 
 function agregar(cod) {
   carrito[cod] = (carrito[cod] || 0) + 1;
+  if (precioUnit[cod] === undefined) {
+    precioUnit[cod] = PRODUCTOS.find((x) => x.cod === cod).precio;
+  }
   renderCarrito();
 }
 
 function cambiarCantidad(cod, delta) {
   carrito[cod] = (carrito[cod] || 0) + delta;
-  if (carrito[cod] <= 0) delete carrito[cod];
+  if (carrito[cod] <= 0) {
+    delete carrito[cod];
+    delete precioUnit[cod];
+  }
   renderCarrito();
 }
 
@@ -168,13 +257,17 @@ function renderCarrito() {
   cods.forEach((cod) => {
     const p = PRODUCTOS.find((x) => x.cod === cod);
     const cant = carrito[cod];
-    const sub = p.precio * cant;
+    const precio = precioUnit[cod];
+    const sub = precio * cant;
     subtotal += sub;
 
     const div = document.createElement("div");
     div.className = "cart-item";
     div.innerHTML = `
-      <div class="cart-name">${p.nombre}<small>${money(p.precio)} c/u</small></div>
+      <div class="cart-name">${p.nombre}
+        <small class="precio-edit">$ <input type="number" inputmode="decimal" step="0.01" min="0"
+          value="${precio.toFixed(2)}" data-act="precio" /> c/u</small>
+      </div>
       <div class="qty">
         <button data-act="menos">−</button>
         <span>${cant}</span>
@@ -183,6 +276,13 @@ function renderCarrito() {
       <div class="cart-sub">${money(sub)}</div>`;
     div.querySelector('[data-act="menos"]').addEventListener("click", () => cambiarCantidad(cod, -1));
     div.querySelector('[data-act="mas"]').addEventListener("click", () => cambiarCantidad(cod, 1));
+    const inp = div.querySelector('[data-act="precio"]');
+    inp.addEventListener("change", () => {
+      let v = parseFloat(inp.value);
+      if (isNaN(v) || v < 0) v = 0;
+      precioUnit[cod] = v;
+      renderCarrito();
+    });
     cont.appendChild(div);
   });
 
@@ -226,7 +326,7 @@ function construirPayload() {
       codigo: p.cod,
       descripcion: p.nombre,
       cantidad: cant,
-      precioUnitario: Number(p.precio.toFixed(2)),
+      precioUnitario: Number(precioUnit[cod].toFixed(2)),
       descuento: 0,
       tipo_iva: CONFIG.TIPO_IVA,
       tipoproducto: CONFIG.TIPO_PRODUCTO
@@ -242,7 +342,7 @@ function construirPayload() {
       tipoIdentificacion: tipoIdentificacion(id),
       identificacion: id,
       razonSocial: $("#cliente-nombre").value.trim(),
-      direccion: "S/N",
+      direccion: $("#cliente-dir").value.trim() || "S/N",
       telefono: $("#cliente-tel").value.trim(),
       email: $("#cliente-email").value.trim()
     },
@@ -303,11 +403,14 @@ function mostrarResultado(ok, clave, msg) {
 /* nueva factura → limpia todo */
 $("#btn-nueva").addEventListener("click", () => {
   carrito = {};
+  precioUnit = {};
   $("#cliente-id").value = "";
   $("#cliente-nombre").value = "";
+  $("#cliente-dir").value = "";
   $("#cliente-tel").value = "";
   $("#cliente-email").value = "";
   $("#buscar").value = "";
+  setSriMsg("");
   renderProductos();
   renderCarrito();
   show("#screen-main");
