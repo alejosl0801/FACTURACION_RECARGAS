@@ -335,41 +335,47 @@ function generarComprobante() {
     '<div class="ride">' +
       '<div class="ride-top">' +
         '<div class="ride-emisor">' +
-          '<div class="ride-logo">🔥 ' + E.comercial + '</div>' +
+          '<img class="ride-logo-img" src="logo.jpg" alt="PREVIFUEGO">' +
           '<div class="ride-rs">' + E.razonSocial + '</div>' +
-          '<div>Dir. Matriz: ' + E.direccion + '</div>' +
+          '<div><b>' + E.comercial + '</b> — Matriz</div>' +
+          '<div>Dir: ' + E.direccion + '</div>' +
           '<div>' + E.email + '</div>' +
-          '<div>Tel: ' + E.telefonos + '</div>' +
-          '<div>Obligado a llevar contabilidad: <b>' + E.contabilidad + '</b></div>' +
+          '<div>' + E.telefonos + '</div>' +
+          '<div>Obligado a llevar contabilidad: ' + E.contabilidad + '</div>' +
+          '<div>EMISIÓN: NORMAL</div>' +
         '</div>' +
         '<div class="ride-doc">' +
-          '<div class="ride-ruc">R.U.C.: ' + E.ruc + '</div>' +
           '<div class="ride-tipo">COMPROBANTE PROVISIONAL</div>' +
-          '<div class="ride-no">No. ' + numProv + '</div>' +
-          '<div class="ride-lbl">NÚMERO DE CONTROL INTERNO</div>' +
-          '<div class="ride-lbl ride-nosri">(documento propio del local · no es autorización del SRI)</div>' +
-          '<div class="ride-cod">' + codInterno + '</div>' +
           '<div class="ride-barras">' + barras + '</div>' +
-          '<div class="ride-fh">FECHA Y HORA: ' + fechaTxt + ' ' + horaTxt + '</div>' +
+          '<div class="ride-barras-txt">' + codInterno + '</div>' +
+          '<div class="ride-docbox">' +
+            '<div><span>R.U.C.:</span> <b>' + E.ruc + '</b></div>' +
+            '<div><span>No.:</span> <b>' + numProv + '</b></div>' +
+            '<div class="ride-ci">N° DE CONTROL INTERNO <em>(propio del local · no es autorización del SRI)</em></div>' +
+            '<div class="ride-cod">' + codInterno + '</div>' +
+            '<div><span>FECHA Y HORA:</span> ' + fechaTxt + ' ' + horaTxt + '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="ride-cliente">' +
         '<div class="r2"><span><b>Razón Social / Nombres:</b> ' + cli.nombre + '</span>' +
           '<span><b>Identificación:</b> ' + cli.id + '</span></div>' +
-        '<div class="r2"><span><b>Fecha Emisión:</b> ' + fechaTxt + '</span>' +
-          '<span><b>Teléfono:</b> ' + cli.tel + '</span></div>' +
-        '<div><b>Dirección:</b> ' + cli.dir + '</div>' +
-        '<div><b>Email:</b> ' + cli.email + '</div>' +
+        '<div class="r2"><span><b>Dirección:</b> ' + cli.dir + '</span>' +
+          '<span><b>Fecha Emisión:</b> ' + fechaTxt + '</span></div>' +
+        '<div class="r2"><span><b>Teléfono:</b> ' + cli.tel + '</span>' +
+          '<span><b>Email:</b> ' + cli.email + '</span></div>' +
       '</div>' +
       '<table class="ride-items"><thead><tr>' +
-        '<th>Cód. Principal</th><th>Cant.</th><th>Descripción</th>' +
+        '<th>Cód.</th><th>Cant.</th><th>Descripción</th>' +
         '<th class="num">P. Unitario</th><th class="num">Descuento</th><th class="num">Subtotal</th>' +
         '</tr></thead><tbody>' + filas + '</tbody></table>' +
       '<div class="ride-bottom">' +
         '<div class="ride-adic">' +
           '<div class="ride-sech">Información Adicional</div>' +
-          '<div class="ride-fp"><b>Forma de Pago</b><span class="num"><b>Valor</b></span></div>' +
-          '<div class="ride-fp"><span>' + formaTxt + '</span><span class="num">' + money(total) + '</span></div>' +
+          '<table class="ride-fp"><thead><tr><th>Forma de Pago</th><th class="num">Valor</th>' +
+            '<th>Plazo</th><th>Tiempo</th></tr></thead>' +
+            '<tbody><tr><td>' + formaTxt + '</td><td class="num">' + money(total) + '</td>' +
+            '<td>—</td><td>—</td></tr></tbody></table>' +
         '</div>' +
         '<div class="ride-tot">' +
           row('Subtotal 15%', money(subtotal)) +
@@ -385,7 +391,7 @@ function generarComprobante() {
           '<div class="ride-vt"><span>VALOR TOTAL</span><b>' + money(total) + '</b></div>' +
         '</div>' +
       '</div>' +
-      '<div class="ride-foot">Documento provisional generado en el local. ' +
+      '<div class="ride-foot">Comprobante provisional generado en el local · ' +
         'La factura electrónica autorizada por el SRI se enviará al correo del cliente.</div>' +
     '</div>';
 
