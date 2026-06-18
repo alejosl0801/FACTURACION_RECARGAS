@@ -1,0 +1,24 @@
+{
+  "name": "Facturación Rápida de Recargas",
+  "short_name": "Recargas",
+  "description": "Emisión rápida de facturas de recargas de extintores",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#c0392b",
+  "theme_color": "#c0392b",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

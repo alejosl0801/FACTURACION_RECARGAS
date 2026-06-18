@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#c0392b" />
+  <title>Facturación Rápida · Recargas</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============ PANTALLA 1: PIN ============ -->
+  <section id="screen-pin" class="screen active">
+    <div class="pin-box">
+      <div class="logo">🔥</div>
+      <h1>Recargas</h1>
+      <p class="subtitle">Ingresá tu clave</p>
+      <div class="pin-dots" id="pin-dots">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <p class="pin-error" id="pin-error"></p>
+      <div class="keypad">
+        <button class="key" data-key="1">1</button>
+        <button class="key" data-key="2">2</button>
+        <button class="key" data-key="3">3</button>
+        <button class="key" data-key="4">4</button>
+        <button class="key" data-key="5">5</button>
+        <button class="key" data-key="6">6</button>
+        <button class="key" data-key="7">7</button>
+        <button class="key" data-key="8">8</button>
+        <button class="key" data-key="9">9</button>
+        <button class="key key-empty"></button>
+        <button class="key" data-key="0">0</button>
+        <button class="key key-del" data-key="del">⌫</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 2: FACTURACIÓN ============ -->
+  <section id="screen-main" class="screen">
+    <header class="topbar">
+      <span class="topbar-title">🔥 Nueva factura</span>
+      <button id="btn-lock" class="topbar-lock" title="Bloquear">🔒</button>
+    </header>
+
+    <div class="content">
+      <!-- Cliente -->
+      <div class="card">
+        <h2>Cliente</h2>
+        <label>Cédula / RUC</label>
+        <div class="row">
+          <input id="cliente-id" type="tel" inputmode="numeric" placeholder="Cédula o RUC" autocomplete="off" />
+          <button id="btn-final" class="btn-secondary">Consumidor final</button>
+        </div>
+        <label>Nombre / Razón social</label>
+        <input id="cliente-nombre" type="text" placeholder="Nombre del cliente" autocomplete="off" />
+        <div class="row">
+          <div class="col">
+            <label>Teléfono (opcional)</label>
+            <input id="cliente-tel" type="tel" inputmode="numeric" placeholder="09..." autocomplete="off" />
+          </div>
+          <div class="col">
+            <label>Email (opcional)</label>
+            <input id="cliente-email" type="email" placeholder="correo@..." autocomplete="off" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Productos -->
+      <div class="card">
+        <h2>Productos</h2>
+        <input id="buscar" type="text" placeholder="🔍 Buscar recarga..." autocomplete="off" />
+        <div id="lista-productos" class="lista-productos"></div>
+      </div>
+
+      <!-- Carrito -->
+      <div class="card" id="card-carrito" style="display:none">
+        <h2>Detalle</h2>
+        <div id="carrito"></div>
+        <div class="totales">
+          <div class="tot-row"><span>Subtotal</span><span id="t-subtotal">$0.00</span></div>
+          <div class="tot-row"><span>IVA 15%</span><span id="t-iva">$0.00</span></div>
+          <div class="tot-row tot-total"><span>TOTAL</span><span id="t-total">$0.00</span></div>
+        </div>
+        <label>Forma de pago</label>
+        <div class="pago-opts">
+          <button class="pago-opt active" data-pago="efectivo">💵 Efectivo</button>
+          <button class="pago-opt" data-pago="transferencia">🏦 Transferencia</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <button id="btn-facturar" class="btn-facturar" disabled>FACTURAR</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 3: RESULTADO ============ -->
+  <section id="screen-result" class="screen">
+    <div class="result-box">
+      <div id="result-icon" class="result-icon">✅</div>
+      <h1 id="result-title">¡Factura emitida!</h1>
+      <p id="result-msg" class="result-msg"></p>
+      <div id="result-clave" class="result-clave"></div>
+      <button id="btn-nueva" class="btn-facturar">NUEVA FACTURA</button>
+    </div>
+  </section>
+
+  <!-- ============ OVERLAY CARGANDO ============ -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Emitiendo factura...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
