@@ -56,14 +56,7 @@ const PRODUCTOS = [
   { cod: "REC40CO2",  nombre: "Recarga 40 lb CO2",   precio: 40.00 },
   { cod: "REC50CO2",  nombre: "Recarga 50 lb CO2",   precio: 50.00 },
   { cod: "REC75CO2",  nombre: "Recarga 75 lb CO2",   precio: 75.00 },
-  { cod: "REC100CO2", nombre: "Recarga 100 lb CO2",  precio: 100.00 },
-  // --- Otras recargas (precio por defecto = el de Azur, editable) ---
-  { cod: "RECNIT",    nombre: "Recarga Nitrógeno",          precio: 45.00 },
-  { cod: "RECFOAM",   nombre: "Recarga Espuma (Foam)",      precio: 35.00 },
-  { cod: "REC2.5AP",  nombre: "Recarga 2.5 Agua a Presión", precio: 17.00 },
-  { cod: "REC2C",     nombre: "Recarga REC2C",              precio: 15.00 },
-  { cod: "RECK",      nombre: "Recarga RECK",               precio: 98.80 },
-  { cod: "RecQ",      nombre: "Recarga RecQ",               precio: 14.00 }
+  { cod: "REC100CO2", nombre: "Recarga 100 lb CO2",  precio: 100.00 }
 ];
 
 /* ============ ESTADO ============ */
