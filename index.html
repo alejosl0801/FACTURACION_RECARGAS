@@ -77,15 +77,14 @@
     </div>
   </section>
 
-  <!-- ============ PANTALLA 3: RESULTADO ============ -->
+  <!-- ============ PANTALLA 3: COMPROBANTE ============ -->
   <section id="screen-result" class="screen">
-    <div class="result-box">
-      <div id="result-icon" class="result-icon">✅</div>
-      <h1 id="result-title">¡Factura emitida!</h1>
-      <p id="result-msg" class="result-msg"></p>
-      <div id="result-clave" class="result-clave"></div>
-      <button id="btn-nueva" class="btn-facturar">NUEVA FACTURA</button>
+    <div class="result-actions no-print">
+      <button id="btn-imprimir" class="btn-secondary">🖨️ Imprimir</button>
+      <button id="btn-compartir" class="btn-secondary">📲 Compartir</button>
+      <button id="btn-nueva" class="btn-facturar">NUEVO</button>
     </div>
+    <div id="comprobante" class="comprobante"></div>
   </section>
 
   <!-- ============ OVERLAY CARGANDO ============ -->
@@ -94,6 +93,7 @@
     <p>Emitiendo factura...</p>
   </div>
 
+  <script src="barcode.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

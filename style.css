@@ -154,3 +154,55 @@ input:focus { outline: none; border-color: var(--rojo); }
   border-top-color: var(--rojo); border-radius: 50%; animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ====== COMPROBANTE PROVISIONAL ====== */
+#screen-result { background: var(--gris); }
+.result-actions {
+  display: flex; gap: 8px; padding: 12px;
+  position: sticky; top: 0; background: var(--gris); z-index: 5;
+}
+.result-actions .btn-secondary { flex: 1; }
+.result-actions .btn-facturar { flex: 1; padding: 14px; font-size: 16px; }
+
+.comprobante {
+  background: #fff; margin: 0 auto 24px; max-width: 380px; padding: 16px;
+  box-shadow: var(--sombra); font-size: 12px; color: #000; line-height: 1.35;
+}
+.cmp-banner {
+  background: #fdecea; border: 1px dashed var(--rojo); color: var(--rojo);
+  text-align: center; font-weight: 800; padding: 8px; border-radius: 8px; margin-bottom: 12px;
+}
+.cmp-banner small { font-weight: 600; color: var(--texto); }
+.cmp-head { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid #000; padding-bottom: 8px; }
+.cmp-emisor { font-size: 11px; }
+.cmp-logo { font-size: 16px; font-weight: 800; color: var(--rojo); margin-bottom: 2px; }
+.cmp-doc { text-align: right; font-size: 11px; min-width: 130px; }
+.cmp-tipo { font-weight: 800; margin-bottom: 4px; }
+.cmp-barras { margin-top: 6px; }
+.cmp-barras svg { width: 100%; height: 46px; }
+.cmp-barras-txt { font-family: monospace; font-size: 10px; letter-spacing: 1px; }
+
+.cmp-cliente { font-size: 11px; padding: 8px 0; border-bottom: 1px solid #000; }
+.cmp-cliente span { color: #555; }
+
+.cmp-items { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+.cmp-items th { text-align: left; border-bottom: 1px solid #000; padding: 4px 3px; }
+.cmp-items td { padding: 4px 3px; border-bottom: 1px solid #eee; vertical-align: top; }
+.cmp-items .num { text-align: right; white-space: nowrap; }
+
+.cmp-bottom { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.cmp-pago { font-size: 11px; flex: 1; }
+.cmp-tot { min-width: 160px; font-size: 12px; }
+.cmp-tot > div { display: flex; justify-content: space-between; padding: 2px 0; }
+.cmp-total { border-top: 2px solid #000; margin-top: 4px; padding-top: 4px !important; font-size: 15px; font-weight: 800; color: var(--rojo); }
+
+.cmp-foot { margin-top: 12px; font-size: 10px; color: #555; text-align: center; border-top: 1px dashed #999; padding-top: 8px; }
+
+/* ====== IMPRESIÓN ====== */
+@media print {
+  body { background: #fff; }
+  .no-print, .footer-bar, .topbar { display: none !important; }
+  .screen { display: none !important; }
+  #screen-result { display: block !important; }
+  .comprobante { box-shadow: none; margin: 0; max-width: 100%; }
+}

@@ -17,11 +17,17 @@ const CONFIG = {
   TIPO_PRODUCTO: 1,
   CODIGO_DOC: "01",   // factura
 
-  // Datos del emisor / establecimiento (ajustar a los reales del local)
+  // Datos del emisor (del local) — salen impresos en el comprobante
   EMISOR: {
-    direccion: "S/N",
+    razonSocial: "LOPEZ MEJIA ALEJANDRO ALBERTO",
+    comercial: "PREVIFUEGO",
+    ruc: "0952773976001",
+    direccion: "PORTETE #3007 Y GALLEGOS LARA",
+    email: "ventas_previfuego@hotmail.com",
+    telefonos: "04-2374822 - 0983583325, 0978997247",
+    contabilidad: "NO",
     establecimiento: "001",
-    puntoEmision: "001"
+    puntoEmision: "002"
   }
 };
 
@@ -271,94 +277,121 @@ function actualizarBotonFacturar() {
 }
 
 /* =====================================================================
-   FACTURAR → Azur
+   GENERAR COMPROBANTE PROVISIONAL (NO se factura en Azur)
+   - Número y código de barras PROPIOS del local (no son del SRI).
+   - La factura electrónica autorizada se emite luego, aparte, en Azur.
    ===================================================================== */
-function construirPayload() {
-  const id = $("#cliente-id").value.trim();
-  const cods = Object.keys(carrito);
+const pad = (n, l) => String(n).padStart(l, "0");
 
-  const items = cods.map((cod) => {
+function proximoCorrelativo() {
+  const n = (parseInt(localStorage.getItem("prov_seq") || "0", 10) || 0) + 1;
+  localStorage.setItem("prov_seq", String(n));
+  return n;
+}
+
+$("#btn-facturar").addEventListener("click", generarComprobante);
+
+function generarComprobante() {
+  const seq = proximoCorrelativo();
+  const ahora = new Date();
+  const f = (x) => pad(x, 2);
+  const ymd = "" + ahora.getFullYear() + f(ahora.getMonth() + 1) + f(ahora.getDate());
+  const fechaTxt = f(ahora.getDate()) + "/" + f(ahora.getMonth() + 1) + "/" + ahora.getFullYear();
+  const horaTxt = f(ahora.getHours()) + ":" + f(ahora.getMinutes());
+
+  // N° de comprobante y código de control INTERNO del local (NO son del SRI)
+  const numProv = CONFIG.EMISOR.establecimiento + "-" + CONFIG.EMISOR.puntoEmision + "-" + pad(seq, 9);
+  const codInterno = "PRV" + ymd + pad(seq, 6);
+
+  const cli = {
+    id: $("#cliente-id").value.trim(),
+    nombre: $("#cliente-nombre").value.trim(),
+    dir: $("#cliente-dir").value.trim() || "—",
+    tel: $("#cliente-tel").value.trim() || "—",
+    email: $("#cliente-email").value.trim() || "—"
+  };
+
+  let subtotal = 0;
+  const filas = Object.keys(carrito).map((cod) => {
     const p = PRODUCTOS.find((x) => x.cod === cod);
     const cant = carrito[cod];
-    return {
-      codigo: p.cod,
-      descripcion: p.nombre,
-      cantidad: cant,
-      precioUnitario: Number(precioUnit[cod].toFixed(2)),
-      descuento: 0,
-      tipo_iva: CONFIG.TIPO_IVA,
-      tipoproducto: CONFIG.TIPO_PRODUCTO
-    };
-  });
+    const pu = precioUnit[cod];
+    const sub = pu * cant;
+    subtotal += sub;
+    return "<tr><td>" + p.cod + "</td><td>" + cant.toFixed(2) + "</td><td>" + p.nombre +
+      "</td><td class='num'>" + money(pu) + "</td><td class='num'>$0.00</td><td class='num'>" +
+      money(sub) + "</td></tr>";
+  }).join("");
 
-  return {
-    // El token de Azur lo agrega el worker de Cloudflare (no va en cliente).
-    codigoDoc: CONFIG.CODIGO_DOC,
-    establecimiento: CONFIG.EMISOR.establecimiento,
-    puntoEmision: CONFIG.EMISOR.puntoEmision,
-    cliente: {
-      tipoIdentificacion: tipoIdentificacion(id),
-      identificacion: id,
-      razonSocial: $("#cliente-nombre").value.trim(),
-      direccion: $("#cliente-dir").value.trim() || "S/N",
-      telefono: $("#cliente-tel").value.trim(),
-      email: $("#cliente-email").value.trim()
-    },
-    formaPago: formaPago,
-    items: items
-  };
-}
+  const iva = subtotal * CONFIG.IVA;
+  const total = subtotal + iva;
+  const formaTxt = formaPago === "transferencia" ? "TRANSFERENCIA / SISTEMA FINANCIERO" : "EFECTIVO";
+  const E = CONFIG.EMISOR;
+  const barras = window.barcode39SVG(codInterno, { height: 55, narrow: 2, ratio: 3 });
 
-$("#btn-facturar").addEventListener("click", facturar);
+  $("#comprobante").innerHTML =
+    '<div class="cmp-banner">COMPROBANTE PROVISIONAL · NO ES FACTURA SRI' +
+      '<br><small>Su factura electrónica autorizada se enviará por correo.</small></div>' +
+    '<div class="cmp-head">' +
+      '<div class="cmp-emisor">' +
+        '<div class="cmp-logo">🔥 ' + E.comercial + '</div>' +
+        '<div><b>' + E.razonSocial + '</b></div>' +
+        '<div>RUC: ' + E.ruc + '</div>' +
+        '<div>Matriz: ' + E.direccion + '</div>' +
+        '<div>' + E.email + '</div>' +
+        '<div>' + E.telefonos + '</div>' +
+        '<div>Obligado a llevar contabilidad: ' + E.contabilidad + '</div>' +
+      '</div>' +
+      '<div class="cmp-doc">' +
+        '<div class="cmp-tipo">COMPROBANTE PROVISIONAL</div>' +
+        '<div>N°: <b>' + numProv + '</b></div>' +
+        '<div>Control interno: ' + codInterno + '</div>' +
+        '<div>Fecha: ' + fechaTxt + ' ' + horaTxt + '</div>' +
+        '<div class="cmp-barras">' + barras + '</div>' +
+        '<div class="cmp-barras-txt">' + codInterno + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cmp-cliente">' +
+      '<div><span>Razón Social / Nombres:</span> ' + cli.nombre + '</div>' +
+      '<div><span>Identificación:</span> ' + cli.id + '</div>' +
+      '<div><span>Dirección:</span> ' + cli.dir + '</div>' +
+      '<div><span>Teléfono:</span> ' + cli.tel + ' &nbsp; <span>Email:</span> ' + cli.email + '</div>' +
+    '</div>' +
+    '<table class="cmp-items"><thead><tr><th>Cód.</th><th>Cant</th><th>Descripción</th>' +
+      '<th class="num">P.Unit</th><th class="num">Descto</th><th class="num">Subtotal</th></tr></thead>' +
+      '<tbody>' + filas + '</tbody></table>' +
+    '<div class="cmp-bottom">' +
+      '<div class="cmp-pago"><div><b>Forma de pago</b></div><div>' + formaTxt + '</div>' +
+        '<div style="margin-top:6px">Valor: <b>' + money(total) + '</b></div></div>' +
+      '<div class="cmp-tot">' +
+        '<div><span>Subtotal 15%</span><b>' + money(subtotal) + '</b></div>' +
+        '<div><span>Subtotal 0%</span><b>$0.00</b></div>' +
+        '<div><span>Descuento</span><b>$0.00</b></div>' +
+        '<div><span>IVA 15%</span><b>' + money(iva) + '</b></div>' +
+        '<div class="cmp-total"><span>VALOR TOTAL</span><b>' + money(total) + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cmp-foot">Documento provisional generado en el local. La factura ' +
+      'electrónica autorizada por el SRI se enviará al correo del cliente.</div>';
 
-async function facturar() {
-  $("#loading").classList.add("active");
-  const payload = construirPayload();
-
-  try {
-    // El worker reenvía a azur.com.ec/plataforma/api/v2/factura/emision
-    // y le agrega el token en privado.
-    const resp = await fetch(CONFIG.PROXY_URL + "factura/emision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-
-    $("#loading").classList.remove("active");
-
-    if (data && (data.creado === "true" || data.creado === true)) {
-      guardarLog(payload, data, true);
-      mostrarResultado(true, data.claveacceso || "");
-    } else {
-      guardarLog(payload, data, false);
-      const msg = data.mensaje || data.error || data.message || "No se pudo emitir la factura.";
-      mostrarResultado(false, "", msg);
-    }
-  } catch (err) {
-    $("#loading").classList.remove("active");
-    guardarLog(payload, { error: String(err) }, false);
-    mostrarResultado(false, "", "Error de conexión. Revisá el internet e intentá de nuevo.");
-  }
-}
-
-function mostrarResultado(ok, clave, msg) {
-  if (ok) {
-    $("#result-icon").textContent = "✅";
-    $("#result-title").textContent = "¡Factura emitida!";
-    $("#result-msg").textContent = "Total " + $("#t-total").textContent;
-    $("#result-clave").innerHTML = clave
-      ? "<strong>Clave de acceso</strong><br>" + clave
-      : "";
-    $("#result-clave").style.display = clave ? "block" : "none";
-  } else {
-    $("#result-icon").textContent = "❌";
-    $("#result-title").textContent = "No se emitió";
-    $("#result-msg").textContent = msg || "Ocurrió un error.";
-    $("#result-clave").style.display = "none";
-  }
+  guardarLog(cli, numProv, total);
   show("#screen-result");
 }
+
+/* Imprimir y compartir el comprobante */
+$("#btn-imprimir").addEventListener("click", () => window.print());
+
+$("#btn-compartir").addEventListener("click", async () => {
+  const texto = $("#comprobante").innerText;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "Comprobante PREVIFUEGO", text: texto });
+    } else {
+      await navigator.clipboard.writeText(texto);
+      alert("Comprobante copiado. Pegalo en WhatsApp.");
+    }
+  } catch (e) { /* cancelado */ }
+});
 
 /* nueva factura → limpia todo */
 $("#btn-nueva").addEventListener("click", () => {
@@ -377,20 +410,28 @@ $("#btn-nueva").addEventListener("click", () => {
 });
 
 /* =====================================================================
-   LOG LOCAL — últimas 100 facturas (solo para referencia del local)
+   LOG LOCAL — últimos 100 comprobantes provisionales (para que vos los
+   factures luego en Azur). Guarda cliente, número, total e ítems.
    ===================================================================== */
-function guardarLog(payload, respuesta, ok) {
+function guardarLog(cli, numProv, total) {
   try {
-    const log = JSON.parse(localStorage.getItem("facturas_log") || "[]");
+    const items = Object.keys(carrito).map((cod) => {
+      const p = PRODUCTOS.find((x) => x.cod === cod);
+      return { cod: p.cod, nombre: p.nombre, cant: carrito[cod], precio: precioUnit[cod] };
+    });
+    const log = JSON.parse(localStorage.getItem("comprobantes_log") || "[]");
     log.unshift({
       fecha: new Date().toISOString(),
-      cliente: payload.cliente.razonSocial,
-      identificacion: payload.cliente.identificacion,
-      total: $("#t-total").textContent,
-      ok: ok,
-      claveacceso: respuesta.claveacceso || null
+      numero: numProv,
+      cliente: cli.nombre,
+      identificacion: cli.id,
+      direccion: cli.dir,
+      telefono: cli.tel,
+      email: cli.email,
+      total: Number(total.toFixed(2)),
+      items: items
     });
-    localStorage.setItem("facturas_log", JSON.stringify(log.slice(0, 100)));
+    localStorage.setItem("comprobantes_log", JSON.stringify(log.slice(0, 100)));
   } catch (e) { /* ignore */ }
 }
 
