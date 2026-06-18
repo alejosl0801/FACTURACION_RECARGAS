@@ -6,20 +6,11 @@
 
 /* ============ CONFIGURACIÓN ============ */
 const CONFIG = {
-  // Proxy Cloudflare: SOLO para emitir la factura (el worker agrega el token
-  // secreto). La emisión sigue yendo por acá, sin secretos en el cliente.
+  // Proxy Cloudflare: emite la factura (token secreto en el worker) y también
+  // consulta el SRI (ruta /sri). Hacerlo por el worker evita el bloqueo CORS
+  // del navegador y los intermediarios públicos poco confiables.
   PROXY_URL: "https://azur-proxy.alejosl0801.workers.dev/",
-
-  // Consulta al SRI OFICIAL y PÚBLICO (no requiere clave). El navegador no
-  // puede llamarlo directo por CORS, así que se prueban estos intermediarios
-  // públicos en orden. Solo viaja el RUC (dato público); ningún secreto.
-  CORS_PROXIES: [
-    (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
-    (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
-    (u) => "https://thingproxy.freeboard.io/fetch/" + u
-  ],
-  SRI_RUC_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc=",
-  SRI_ESTAB_URL: "https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/Establecimiento/consultarEstablecimientosPorNumeroRuc?numeroRuc=",
+  SRI_URL: "https://azur-proxy.alejosl0801.workers.dev/sri",
 
   IVA: 0.15,          // 15%
   TIPO_IVA: 4,        // código Azur para IVA 15%
@@ -78,22 +69,11 @@ function setSriMsg(texto, esError) {
   el.className = "sri-msg" + (esError ? " error" : "");
 }
 
-/* Trae una URL pública sorteando CORS: prueba directo y luego los
-   intermediarios públicos, en orden, hasta que uno responda JSON válido. */
+/* Consulta el SRI a través de tu worker (devuelve {razonSocial, direccion}). */
 async function fetchSRI(url) {
-  const intentos = [url];
-  CONFIG.CORS_PROXIES.forEach((build) => intentos.push(build(url)));
-  let ultimoError = "sin respuesta";
-  for (const u of intentos) {
-    try {
-      const r = await fetch(u);
-      if (!r.ok) { ultimoError = "HTTP " + r.status; continue; }
-      return JSON.parse(await r.text());
-    } catch (e) {
-      ultimoError = (e && e.message) ? e.message : String(e);
-    }
-  }
-  throw new Error(ultimoError);
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return JSON.parse(await r.text());
 }
 
 /* Busca, dentro de un objeto JSON (aunque esté anidado), el valor de la
@@ -126,9 +106,6 @@ async function buscarSRI() {
     setSriMsg("Ingresá una cédula (10 dígitos) o RUC (13 dígitos).", true);
     return;
   }
-  // Persona natural (cédula 10 díg) → su RUC en el SRI es la cédula + "001"
-  const ruc13 = raw.length === 10 ? raw + "001" : raw;
-
   const btn = $("#btn-sri");
   const txtOriginal = btn.textContent;
   btn.disabled = true;
@@ -136,10 +113,9 @@ async function buscarSRI() {
   setSriMsg("");
 
   try {
-    // 1) Nombre / razón social
-    const cons = await fetchSRI(CONFIG.SRI_RUC_URL + ruc13);
-    const c = Array.isArray(cons) ? cons[0] : cons;
-    const nombre = buscarCampo(c, ["razonsocial", "razon", "nombrecomercial", "nombre", "denominacion"]);
+    // El worker consulta el SRI y devuelve { razonSocial, direccion }
+    const data = await fetchSRI(CONFIG.SRI_URL + "?ruc=" + encodeURIComponent(raw));
+    const nombre = buscarCampo(data, ["razonsocial", "razon", "nombrecomercial", "nombre", "denominacion"]);
 
     if (!nombre) {
       setSriMsg("No se encontró ese número en el SRI. Revisá los dígitos.", true);
@@ -147,16 +123,7 @@ async function buscarSRI() {
     }
     $("#cliente-nombre").value = nombre;
 
-    // 2) Dirección (del establecimiento matriz) — opcional
-    let direccion = "";
-    try {
-      const est = await fetchSRI(CONFIG.SRI_ESTAB_URL + ruc13);
-      const arr = (est && est.establecimientos) ? est.establecimientos : est;
-      if (Array.isArray(arr)) {
-        const m = arr.find((e) => e.matriz === "SI" || e.tipoEstablecimiento === "MAT") || arr[0];
-        if (m) direccion = m.direccionCompleta || "";
-      }
-    } catch (e) { /* dirección opcional */ }
+    const direccion = buscarCampo(data, ["direccion", "direccioncompleta"]);
     if (direccion) $("#cliente-dir").value = direccion;
 
     setSriMsg("✓ Datos cargados del SRI. El teléfono y el correo no son públicos: completalos a mano si los necesitás.");
