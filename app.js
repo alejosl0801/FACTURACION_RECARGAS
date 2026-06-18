@@ -385,6 +385,10 @@ function guardarLog(payload, respuesta, ok) {
 renderProductos();
 renderCarrito();
 
+/* Limpieza: si quedó un service worker viejo cacheando la app,
+   forzar su actualización (sw.js ahora se autoelimina). */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.getRegistrations()
+    .then((regs) => regs.forEach((r) => r.update()))
+    .catch(() => {});
 }

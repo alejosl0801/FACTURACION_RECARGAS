@@ -1,37 +1,15 @@
-/* Service worker mínimo — cachea el shell para que la app abra rápido
-   y funcione aunque haya internet lento. NO cachea llamadas a Azur. */
-const CACHE = "recargas-v1";
-const ASSETS = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
-];
+/* Service worker de auto-limpieza.
+   Borra cualquier caché viejo, se desregistra y recarga las pestañas
+   abiertas para que siempre se vea la última versión publicada.
+   (Se quitó el cacheo: la app se sirve siempre fresca desde la red.) */
+self.addEventListener("install", () => self.skipWaiting());
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  // Nunca cachear las peticiones a la API de facturación.
-  if (url.hostname.includes("workers.dev") || url.hostname.includes("azur.com.ec")) {
-    return; // deja pasar a la red
-  }
-  e.respondWith(
-    caches.match(e.request).then((hit) => hit || fetch(e.request))
-  );
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+    await self.registration.unregister();
+    const clients = await self.clients.matchAll({ type: "window" });
+    clients.forEach((c) => c.navigate(c.url));
+  })());
 });
