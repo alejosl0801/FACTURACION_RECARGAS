@@ -277,58 +277,111 @@ function actualizarBotonFacturar() {
 }
 
 /* =====================================================================
-   GENERAR COMPROBANTE PROVISIONAL (NO se factura en Azur)
-   - Número y código de barras PROPIOS del local (no son del SRI).
-   - La factura electrónica autorizada se emite luego, aparte, en Azur.
+   EMITIR FACTURA REAL en Azur (api/v2/factura/emision por el worker)
+   y mostrarla para imprimir con su autorización auténtica.
    ===================================================================== */
 const pad = (n, l) => String(n).padStart(l, "0");
+const escapeHtml = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-function proximoCorrelativo() {
-  const n = (parseInt(localStorage.getItem("prov_seq") || "0", 10) || 0) + 1;
-  localStorage.setItem("prov_seq", String(n));
-  return n;
-}
-
-$("#btn-facturar").addEventListener("click", generarComprobante);
-
-function generarComprobante() {
-  const seq = proximoCorrelativo();
-  const ahora = new Date();
-  const f = (x) => pad(x, 2);
-  const ymd = "" + ahora.getFullYear() + f(ahora.getMonth() + 1) + f(ahora.getDate());
-  const fechaTxt = f(ahora.getDate()) + "/" + f(ahora.getMonth() + 1) + "/" + ahora.getFullYear();
-  const horaTxt = f(ahora.getHours()) + ":" + f(ahora.getMinutes());
-
-  // N° de comprobante y código de control INTERNO del local (NO son del SRI)
-  const numProv = CONFIG.EMISOR.establecimiento + "-" + CONFIG.EMISOR.puntoEmision + "-" + pad(seq, 9);
-  const codInterno = "PVF" + ymd + pad(seq, 6);
-
+function contextoVenta() {
   const cli = {
     id: $("#cliente-id").value.trim(),
     nombre: $("#cliente-nombre").value.trim(),
-    dir: $("#cliente-dir").value.trim() || "—",
+    dir: $("#cliente-dir").value.trim() || "S/N",
     tel: $("#cliente-tel").value.trim() || "—",
     email: $("#cliente-email").value.trim() || "—"
   };
-
   let subtotal = 0;
   const filas = Object.keys(carrito).map((cod) => {
     const p = PRODUCTOS.find((x) => x.cod === cod);
-    const cant = carrito[cod];
-    const pu = precioUnit[cod];
-    const sub = pu * cant;
+    const cant = carrito[cod], pu = precioUnit[cod], sub = pu * cant;
     subtotal += sub;
     return "<tr><td>" + p.cod + "</td><td>" + cant.toFixed(2) + "</td><td>" + p.nombre +
       "</td><td class='num'>" + money(pu) + "</td><td class='num'>$0.00</td><td class='num'>" +
       money(sub) + "</td></tr>";
   }).join("");
-
-  const iva = subtotal * CONFIG.IVA;
-  const total = subtotal + iva;
+  const iva = subtotal * CONFIG.IVA, total = subtotal + iva;
   const formaTxt = formaPago === "transferencia" ? "TRANSFERENCIA / SISTEMA FINANCIERO" : "EFECTIVO";
-  const E = CONFIG.EMISOR;
-  const barras = window.barcode39SVG(codInterno, { height: 55, narrow: 2, ratio: 3 });
+  return { cli, filas, subtotal, iva, total, formaTxt };
+}
 
+function construirPayload(ctx) {
+  const a = new Date();
+  const f = (x) => pad(x, 2);
+  const items = Object.keys(carrito).map((cod) => {
+    const p = PRODUCTOS.find((x) => x.cod === cod);
+    return {
+      codigo_principal: p.cod,
+      codigo_auxiliar: null,
+      descripcion: p.nombre,
+      tipoproducto: CONFIG.TIPO_PRODUCTO,
+      tipo_iva: CONFIG.TIPO_IVA,
+      precio_unitario: Number(precioUnit[cod].toFixed(2)),
+      cantidad: carrito[cod],
+      descuento: 0
+    };
+  });
+  return {
+    // api_key lo agrega el worker en privado (no va en este código)
+    codigoDoc: CONFIG.CODIGO_DOC,
+    emisor: {
+      manejo_interno_secuencia: "SI",
+      fecha_emision: a.getFullYear() + "/" + f(a.getMonth() + 1) + "/" + f(a.getDate())
+    },
+    comprador: {
+      tipo_identificacion: tipoIdentificacion(ctx.cli.id),
+      identificacion: ctx.cli.id,
+      razon_social: ctx.cli.nombre,
+      direccion: ctx.cli.dir,
+      telefono: $("#cliente-tel").value.trim() || null,
+      celular: null,
+      correo: $("#cliente-email").value.trim() || null
+    },
+    items: items,
+    pagos: [{ tipo: formaPago === "transferencia" ? "20" : "01", total: ctx.total.toFixed(2) }],
+    informacion_adicional: [{ nombre: "Atendido por", detalle: CONFIG.EMISOR.comercial }]
+  };
+}
+
+$("#btn-facturar").addEventListener("click", facturar);
+
+async function facturar() {
+  const ctx = contextoVenta();
+  $("#loading").classList.add("active");
+  let data;
+  try {
+    const resp = await fetch(CONFIG.PROXY_URL + "factura/emision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(construirPayload(ctx))
+    });
+    const txt = await resp.text();
+    try { data = JSON.parse(txt); } catch (e) { data = { _respuesta: txt, _status: resp.status }; }
+  } catch (err) {
+    data = { error: String(err) };
+  }
+  $("#loading").classList.remove("active");
+
+  const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso || data.clave)) || "";
+  if (clave) {
+    renderFactura(ctx, data, clave);
+    guardarLog(ctx.cli, clave, ctx.total);
+  } else {
+    renderRespuesta(data);
+  }
+  show("#screen-result");
+}
+
+/* Factura REAL autorizada (clave devuelta por Azur) */
+function renderFactura(ctx, data, clave) {
+  const E = CONFIG.EMISOR;
+  const a = new Date();
+  const f = (x) => pad(x, 2);
+  const fechaTxt = f(a.getDate()) + "/" + f(a.getMonth() + 1) + "/" + a.getFullYear() +
+    " " + f(a.getHours()) + ":" + f(a.getMinutes());
+  const num = data.secuencial || data.numero || data.numeroFactura || "";
+  const ambiente = data.ambiente || "PRODUCCIÓN";
+  const barras = window.barcode39SVG(clave, { height: 55, narrow: 1, ratio: 3 });
   const row = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
 
   $("#comprobante").innerHTML =
@@ -342,59 +395,68 @@ function generarComprobante() {
           '<div>' + E.email + '</div>' +
           '<div>' + E.telefonos + '</div>' +
           '<div>Obligado a llevar contabilidad: ' + E.contabilidad + '</div>' +
-          '<div>EMISIÓN: NORMAL</div>' +
         '</div>' +
         '<div class="ride-doc">' +
-          '<div class="ride-tipo">PROFORMA</div>' +
-          '<div class="ride-barras">' + barras + '</div>' +
+          '<div class="ride-tipo">FACTURA</div>' +
           '<div class="ride-docbox">' +
             '<div><span>R.U.C.:</span> <b>' + E.ruc + '</b></div>' +
-            '<div><span>No.:</span> <b>' + numProv + '</b></div>' +
-            '<div><span>Cód.:</span> <span class="ride-cod">' + codInterno + '</span></div>' +
-            '<div><span>FECHA Y HORA:</span> ' + fechaTxt + ' ' + horaTxt + '</div>' +
+            (num ? '<div><span>No.:</span> <b>' + num + '</b></div>' : '') +
+            '<div class="ride-lbl">NÚMERO DE AUTORIZACIÓN</div>' +
+            '<div class="ride-cod">' + clave + '</div>' +
+            '<div><span>AMBIENTE:</span> <b>' + ambiente + '</b> &nbsp; EMISIÓN: NORMAL</div>' +
+            '<div><span>FECHA Y HORA:</span> ' + fechaTxt + '</div>' +
           '</div>' +
+          '<div class="ride-barras">' + barras + '</div>' +
+          '<div class="ride-barras-txt">' + clave + '</div>' +
         '</div>' +
       '</div>' +
       '<div class="ride-cliente">' +
-        '<div class="r2"><span><b>Razón Social / Nombres:</b> ' + cli.nombre + '</span>' +
-          '<span><b>Identificación:</b> ' + cli.id + '</span></div>' +
-        '<div class="r2"><span><b>Dirección:</b> ' + cli.dir + '</span>' +
+        '<div class="r2"><span><b>Razón Social / Nombres:</b> ' + ctx.cli.nombre + '</span>' +
+          '<span><b>Identificación:</b> ' + ctx.cli.id + '</span></div>' +
+        '<div class="r2"><span><b>Dirección:</b> ' + ctx.cli.dir + '</span>' +
           '<span><b>Fecha Emisión:</b> ' + fechaTxt + '</span></div>' +
-        '<div class="r2"><span><b>Teléfono:</b> ' + cli.tel + '</span>' +
-          '<span><b>Email:</b> ' + cli.email + '</span></div>' +
+        '<div class="r2"><span><b>Teléfono:</b> ' + ctx.cli.tel + '</span>' +
+          '<span><b>Email:</b> ' + ctx.cli.email + '</span></div>' +
       '</div>' +
       '<table class="ride-items"><thead><tr>' +
         '<th>Cód.</th><th>Cant.</th><th>Descripción</th>' +
         '<th class="num">P. Unitario</th><th class="num">Descuento</th><th class="num">Subtotal</th>' +
-        '</tr></thead><tbody>' + filas + '</tbody></table>' +
+        '</tr></thead><tbody>' + ctx.filas + '</tbody></table>' +
       '<div class="ride-bottom">' +
         '<div class="ride-adic">' +
           '<div class="ride-sech">Información Adicional</div>' +
           '<table class="ride-fp"><thead><tr><th>Forma de Pago</th><th class="num">Valor</th>' +
             '<th>Plazo</th><th>Tiempo</th></tr></thead>' +
-            '<tbody><tr><td>' + formaTxt + '</td><td class="num">' + money(total) + '</td>' +
+            '<tbody><tr><td>' + ctx.formaTxt + '</td><td class="num">' + money(ctx.total) + '</td>' +
             '<td>—</td><td>—</td></tr></tbody></table>' +
         '</div>' +
         '<div class="ride-tot">' +
-          row('Subtotal 15%', money(subtotal)) +
+          row('Subtotal 15%', money(ctx.subtotal)) +
           row('Subtotal 0%', '$0.00') +
           row('Subtotal no objeto de IVA', '$0.00') +
           row('Subtotal Exento de IVA', '$0.00') +
-          row('Subtotal Sin Impuestos', money(subtotal)) +
+          row('Subtotal Sin Impuestos', money(ctx.subtotal)) +
           row('Descuento', '$0.00') +
           row('ICE', '$0.00') +
-          row('IVA 15%', money(iva)) +
+          row('IVA 15%', money(ctx.iva)) +
           row('IRBPNR', '$0.00') +
           row('Propina', '$0.00') +
-          '<div class="ride-vt"><span>VALOR TOTAL</span><b>' + money(total) + '</b></div>' +
+          '<div class="ride-vt"><span>VALOR TOTAL</span><b>' + money(ctx.total) + '</b></div>' +
         '</div>' +
       '</div>' +
-      '<div class="ride-foot">Comprobante provisional generado en el local · ' +
-        'La factura electrónica autorizada por el SRI se enviará al correo del cliente.</div>' +
+      '<div class="ride-foot">Comprobante electrónico AUTORIZADO por el SRI · Clave de acceso: ' + clave + '</div>' +
     '</div>';
+}
 
-  guardarLog(cli, numProv, total);
-  show("#screen-result");
+/* Si Azur NO autorizó: mostrar la respuesta para diagnosticar/ajustar */
+function renderRespuesta(data) {
+  $("#comprobante").innerHTML =
+    '<div class="ride" style="padding:16px">' +
+      '<div class="ride-tipo" style="color:#c0392b;font-size:18px">No se emitió la factura</div>' +
+      '<p style="margin:8px 0;font-size:12px">Azur respondió esto. Copiámelo para ajustar el formato:</p>' +
+      '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:10px;' +
+      'border-radius:6px;font-size:11px;color:#000">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>' +
+    '</div>';
 }
 
 /* Imprimir y compartir el comprobante */
