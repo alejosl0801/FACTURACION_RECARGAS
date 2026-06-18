@@ -8,7 +8,7 @@ complejo, sin carrito complicado, sin stock.
 
 ## Flujo
 
-1. **PIN** de 4 dígitos para entrar.
+1. **Abrís el link y entrás directo** (sin PIN ni contraseña).
 2. **Cliente** — se escribe la cédula/RUC y con **🔎 Buscar en SRI** se autocompletan
    nombre/razón social y dirección desde el catastro público del SRI.
 3. **Productos** — lista con buscador (códigos reales de Azur); se agregan con
@@ -29,20 +29,19 @@ del worker que reenvíe a `srienlinea.sri.gob.ec`).
 
 | Archivo | Qué hace |
 |---|---|
-| `index.html` | Las 3 pantallas (PIN, facturación, resultado) |
-| `app.js` | Toda la lógica: PIN, productos, IVA, llamada a Azur, log local |
+| `index.html` | Las 2 pantallas (facturación, resultado) |
+| `app.js` | Toda la lógica: productos, IVA, SRI, llamada a Azur, log local |
 | `style.css` | Estilos mobile-first |
 | `manifest.json` + `sw.js` + `icons/` | PWA: instalable en pantalla de inicio |
 
 ## Configuración (en `app.js`, objeto `CONFIG`)
 
-- **PIN** — cambiar `"1234"` por el real.
 - **PROXY_URL / TOKEN** — proxy Cloudflare que reenvía a Azur.
 - **PRODUCTOS** — lista fija de recargas con precios (sin IVA).
 - **IVA** 15% (`TIPO_IVA: 4`).
 
 > ⚠️ **Pendiente antes de producción:**
-> - Confirmar **precios reales** y el **PIN** real.
+> - Confirmar **precios reales**.
 > - **Validar el formato del payload de Azur** contra la implementación que ya
 >   funciona en el portal de distribuidores. El payload de `construirPayload()`
 >   está hecho con los campos documentados pero debe verificarse campo por campo

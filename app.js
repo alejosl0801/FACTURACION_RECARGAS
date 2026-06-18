@@ -6,9 +6,6 @@
 
 /* ============ CONFIGURACIÓN ============ */
 const CONFIG = {
-  // PIN de acceso (4 dígitos). CAMBIAR por el real antes de producción.
-  PIN: "1234",
-
   // Proxy Cloudflare que reenvía a Azur (evita CORS y oculta el token).
   PROXY_URL: "https://azur-proxy.alejosl0801.workers.dev/",
   TOKEN: "API_1851_2064_5fcfa1b47f430",
@@ -60,7 +57,6 @@ const PRODUCTOS = [
 ];
 
 /* ============ ESTADO ============ */
-let pinActual = "";
 let carrito = {};            // { cod: cantidad }
 let precioUnit = {};         // { cod: precio unitario actual (editable) }
 let formaPago = "efectivo";
@@ -75,51 +71,7 @@ function show(screenId) {
 }
 
 /* =====================================================================
-   PANTALLA 1 — PIN
-   ===================================================================== */
-function renderPinDots() {
-  const dots = $("#pin-dots").children;
-  for (let i = 0; i < dots.length; i++) {
-    dots[i].classList.toggle("filled", i < pinActual.length);
-  }
-}
-
-function pressKey(k) {
-  $("#pin-error").textContent = "";
-  if (k === "del") {
-    pinActual = pinActual.slice(0, -1);
-  } else if (pinActual.length < 4) {
-    pinActual += k;
-  }
-  renderPinDots();
-
-  if (pinActual.length === 4) {
-    setTimeout(() => {
-      if (pinActual === CONFIG.PIN) {
-        pinActual = "";
-        renderPinDots();
-        show("#screen-main");
-      } else {
-        $("#pin-error").textContent = "Clave incorrecta";
-        pinActual = "";
-        renderPinDots();
-      }
-    }, 150);
-  }
-}
-
-document.querySelectorAll(".key[data-key]").forEach((btn) => {
-  btn.addEventListener("click", () => pressKey(btn.dataset.key));
-});
-
-$("#btn-lock").addEventListener("click", () => {
-  pinActual = "";
-  renderPinDots();
-  show("#screen-pin");
-});
-
-/* =====================================================================
-   PANTALLA 2 — Cliente
+   Cliente
    ===================================================================== */
 /* --- Buscar contribuyente en el SRI por cédula/RUC --- */
 function setSriMsg(texto, esError) {
@@ -430,7 +382,6 @@ function guardarLog(payload, respuesta, ok) {
 /* =====================================================================
    INIT
    ===================================================================== */
-renderPinDots();
 renderProductos();
 renderCarrito();
 

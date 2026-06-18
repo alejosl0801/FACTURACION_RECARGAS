@@ -9,8 +9,9 @@ extintores desde el celular. Pensada para una persona no técnica en el local.
 - Mobile-first, botones grandes, una sola columna.
 
 ## Archivos
-- `index.html` — 3 `<section class="screen">`: `#screen-pin`, `#screen-main`, `#screen-result`.
-- `app.js` — `CONFIG` (PIN, proxy, token, IVA), `PRODUCTOS`, lógica de PIN,
+- `index.html` — 2 `<section class="screen">`: `#screen-main`, `#screen-result`.
+  La app abre directo en `#screen-main` (sin PIN ni login).
+- `app.js` — `CONFIG` (proxy, token, IVA, SRI), `PRODUCTOS`, búsqueda SRI,
   carrito, totales con IVA, `construirPayload()`, `facturar()`, log local.
 - `style.css` — estilos. Paleta: rojo `#c0392b`, verde `#27ae60`.
 - `manifest.json`, `sw.js`, `icons/` — PWA instalable.
@@ -33,7 +34,7 @@ y ajustar nombres de campos si Azur los rechaza.
 
 ## Lo que NO se hace
 - No frameworks / build / npm.
-- No login complejo (el PIN en el código alcanza para este caso).
+- No login ni PIN: la app abre directo en la pantalla de facturación.
 - No Supabase ni Google Sheets — las facturas viven en Azur. `localStorage`
   guarda solo un log de referencia de las últimas 100.
 
