@@ -65,6 +65,93 @@ function show(screenId) {
 }
 
 /* =====================================================================
+   BASE DE CLIENTES (vive SOLO en el dispositivo — localStorage)
+   - Se importa una vez (archivo JSON/CSV exportado de Azur).
+   - Al buscar, se consulta primero acá (trae nombre/dir/tel/correo).
+   - Los clientes nuevos o editados se guardan automáticamente.
+   ===================================================================== */
+let _clientesIndex = null;
+function clientesDB() {
+  try { return JSON.parse(localStorage.getItem("clientes_db") || "[]"); } catch (e) { return []; }
+}
+function indexClientes() {
+  _clientesIndex = {};
+  clientesDB().forEach((c) => { if (c && c.id) _clientesIndex[String(c.id).trim()] = c; });
+}
+function buscarClienteLocal(id) {
+  if (!_clientesIndex) indexClientes();
+  return _clientesIndex[String(id).trim()] || null;
+}
+function guardarClienteActual() {
+  const id = $("#cliente-id").value.trim();
+  if (!id) return;
+  const rec = {
+    id: id, tipo: tipoIdentificacion(id) || "",
+    nombre: $("#cliente-nombre").value.trim(),
+    dir: $("#cliente-dir").value.trim(),
+    tel: $("#cliente-tel").value.trim(), cel: "",
+    correo: $("#cliente-email").value.trim()
+  };
+  if (!rec.nombre) return;
+  const db = clientesDB();
+  const i = db.findIndex((c) => String(c.id).trim() === id);
+  if (i >= 0) db[i] = Object.assign({}, db[i], rec); else db.push(rec);
+  localStorage.setItem("clientes_db", JSON.stringify(db));
+  _clientesIndex = null;
+}
+
+/* CSV con campos entre comillas (las direcciones tienen comas) */
+function parseCSVClientes(txt) {
+  const lines = txt.split(/\r?\n/).filter((l) => l.trim());
+  const parseLine = (line) => {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+      else { if (ch === '"') q = true; else if (ch === ",") { out.push(cur); cur = ""; } else cur += ch; }
+    }
+    out.push(cur); return out;
+  };
+  const head = parseLine(lines[0]).map((h) => h.toLowerCase());
+  const idx = (n) => head.findIndex((h) => h.includes(n));
+  const iId = idx("identif"), iTipo = idx("tipo"), iNom = idx("razon"),
+    iDir = idx("direc"), iTel = idx("telefono"), iCel = idx("celular"), iCor = idx("correo");
+  const arr = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = parseLine(lines[i]);
+    const id = (c[iId] || "").replace(/^'/, "").trim();
+    if (!id) continue;
+    arr.push({
+      id, tipo: (c[iTipo] || "").trim(), nombre: (c[iNom] || "").trim(),
+      dir: (c[iDir] || "").trim(), tel: (c[iTel] || "").trim(),
+      cel: (c[iCel] || "").trim(), correo: (c[iCor] || "").trim()
+    });
+  }
+  return arr;
+}
+
+$("#btn-import").addEventListener("click", () => $("#file-clientes").click());
+$("#file-clientes").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const txt = reader.result;
+      const arr = file.name.toLowerCase().endsWith(".csv") ? parseCSVClientes(txt) : JSON.parse(txt);
+      if (!Array.isArray(arr)) throw new Error("formato no válido");
+      localStorage.setItem("clientes_db", JSON.stringify(arr));
+      _clientesIndex = null;
+      alert("✓ Clientes importados: " + arr.length);
+    } catch (err) {
+      alert("No se pudo leer el archivo: " + (err.message || err));
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+/* =====================================================================
    Cliente
    ===================================================================== */
 /* --- Buscar contribuyente en el SRI por cédula/RUC --- */
@@ -111,6 +198,20 @@ async function buscarSRI() {
     setSriMsg("Ingresá una cédula (10 dígitos) o RUC (13 dígitos).", true);
     return;
   }
+
+  // 1) Primero en TU base de clientes (datos completos)
+  const local = buscarClienteLocal(raw);
+  if (local) {
+    $("#cliente-nombre").value = local.nombre || "";
+    if (local.dir) $("#cliente-dir").value = local.dir;
+    const tel = local.tel || local.cel || "";
+    if (tel) $("#cliente-tel").value = tel;
+    if (local.correo) $("#cliente-email").value = local.correo;
+    setSriMsg("✓ Cliente encontrado en tu base.");
+    actualizarBotonFacturar();
+    return;
+  }
+
   const btn = $("#btn-sri");
   const txtOriginal = btn.textContent;
   btn.disabled = true;
@@ -377,6 +478,9 @@ async function facturar() {
   }
   $("#loading").classList.remove("active");
   emitiendo = false;
+
+  // Guardar/actualizar el cliente en la base local del dispositivo
+  guardarClienteActual();
 
   const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso || data.clave)) || "";
   if (clave) {
