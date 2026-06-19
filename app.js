@@ -455,6 +455,7 @@ function construirPayload(ctx) {
 $("#btn-facturar").addEventListener("click", facturar);
 
 let emitiendo = false; // evita doble emisión por doble toque
+let ultimaClave = "";  // clave de acceso de la última factura emitida
 
 async function facturar() {
   if (emitiendo) return;
@@ -482,8 +483,11 @@ async function facturar() {
   // Guardar/actualizar el cliente en la base local del dispositivo
   guardarClienteActual();
 
-  const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso || data.clave)) || "";
-  if (clave) {
+  // Éxito SOLO si Azur dice creado:"true" (ojo: en errores también puede venir claveacceso)
+  const exito = data && (data.creado === "true" || data.creado === true);
+  const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso)) || "";
+  if (exito && clave) {
+    ultimaClave = clave;
     renderFactura(ctx, data, clave);
     guardarLog(ctx.cli, clave, ctx.total);
   } else {
@@ -568,30 +572,52 @@ function renderFactura(ctx, data, clave) {
     '</div>';
 }
 
-/* Si Azur NO autorizó: mostrar la respuesta para diagnosticar/ajustar */
+/* Si Azur NO autorizó: mostrar el/los motivo(s) de forma clara */
 function renderRespuesta(data) {
+  let cuerpo;
+  if (data && Array.isArray(data.errors) && data.errors.length) {
+    cuerpo = '<ul style="margin:8px 0 0 18px;font-size:13px;color:#000">' +
+      data.errors.map((e) => '<li>' + escapeHtml(String(e)) + '</li>').join("") + '</ul>';
+  } else {
+    cuerpo = '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:10px;' +
+      'border-radius:6px;font-size:11px;color:#000">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+  }
   $("#comprobante").innerHTML =
     '<div class="ride" style="padding:16px">' +
       '<div class="ride-tipo" style="color:#c0392b;font-size:18px">No se emitió la factura</div>' +
-      '<p style="margin:8px 0;font-size:12px">Azur respondió esto. Copiámelo para ajustar el formato:</p>' +
-      '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:10px;' +
-      'border-radius:6px;font-size:11px;color:#000">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>' +
+      '<p style="margin:8px 0;font-size:12px">Azur informó:</p>' + cuerpo +
     '</div>';
 }
 
-/* Imprimir y compartir el comprobante */
+/* Imprimir la vista actual */
 $("#btn-imprimir").addEventListener("click", () => window.print());
 
-$("#btn-compartir").addEventListener("click", async () => {
-  const texto = $("#comprobante").innerText;
+/* Traer el PDF REAL de Azur (consulta/comprobante con la clave de acceso) */
+$("#btn-pdf").addEventListener("click", async () => {
+  if (!ultimaClave) { alert("Primero emití una factura."); return; }
   try {
-    if (navigator.share) {
-      await navigator.share({ title: "Comprobante PREVIFUEGO", text: texto });
+    const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claveacceso: ultimaClave })
+    });
+    const txt = await r.text();
+    let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
+    // Buscar el PDF en la respuesta (URL o base64), tolerando varios nombres
+    const pdf = d && (d.pdf || d.PDF || d.archivo || d.base64 || d.pdfBase64 || (d.data && (d.data.pdf || d.data.PDF)));
+    if (pdf && /^https?:\/\//.test(pdf)) {
+      window.open(pdf, "_blank");
+    } else if (pdf) {
+      const a = document.createElement("a");
+      a.href = "data:application/pdf;base64," + pdf;
+      a.download = "factura-" + ultimaClave + ".pdf";
+      a.click();
     } else {
-      await navigator.clipboard.writeText(texto);
-      alert("Comprobante copiado. Pegalo en WhatsApp.");
+      alert("Azur respondió, pero no encontré el PDF. Respuesta:\n" + txt.slice(0, 400));
     }
-  } catch (e) { /* cancelado */ }
+  } catch (e) {
+    alert("No se pudo traer el PDF de Azur: " + (e.message || e));
+  }
 });
 
 /* nueva factura → limpia todo */
