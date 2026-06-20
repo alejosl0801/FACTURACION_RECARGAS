@@ -12,6 +12,8 @@ const CONFIG = {
   PROXY_URL: "https://azur-proxy.alejosl0801.workers.dev/",
   SRI_URL: "https://azur-proxy.alejosl0801.workers.dev/sri",
 
+  USUARIO: "Fabiola", // a quién saluda la app (se siente suya)
+
   IVA: 0.15,          // 15%
   TIPO_IVA: 4,        // código Azur para IVA 15%
   TIPO_PRODUCTO: 1,
@@ -853,6 +855,17 @@ function guardarLog(cli, numProv, total) {
 /* =====================================================================
    INIT
    ===================================================================== */
+/* Saludo personalizado (que Fabiola sienta que la app es suya) */
+function setSaludo() {
+  const el = $("#saludo");
+  if (!el) return;
+  const h = new Date().getHours();
+  const parte = h < 12 ? "☀️ Buenos días" : (h < 19 ? "🌤️ Buenas tardes" : "🌙 Buenas noches");
+  el.innerHTML = parte + ', <b>' + CONFIG.USUARIO + '</b> 👋' +
+    '<span>Esta es tu app — emití fácil y rápido 💛</span>';
+}
+setSaludo();
+
 restaurarSesion();   // recupera la venta a medio hacer y la última forma de pago
 renderProductos();
 renderCarrito();
