@@ -344,3 +344,27 @@ body { background: linear-gradient(180deg, #f7f9fb 0%, #eaeef2 100%); }
 .result-actions { flex-wrap: wrap; }
 #btn-wpp { background: #25D366; color: #fff; border-color: #25D366; }
 #btn-wpp:active { background: #1da851; }
+
+/* ====== RESPONSIVE / móvil (todo tipo de celulares) ====== */
+html, body { overflow-x: hidden; }           /* nada se sale de la pantalla */
+.content { padding-bottom: 150px; }           /* el footer es más alto (lleva la pista) */
+.row > input { flex: 1; min-width: 0; }       /* el campo no se aplasta junto a "Buscar en SRI" */
+.estado-ok { max-width: 100%; }
+
+/* Celulares angostos (≤ 380px) */
+@media (max-width: 380px) {
+  html, body { font-size: 17px; }
+  .topbar-title { font-size: 16px; }
+  .brand-logo { width: 32px; height: 32px; }
+  #btn-sri { padding: 13px 10px; font-size: 14px; white-space: normal; }
+  .card { padding: 13px; }
+  .cat-tab { font-size: 17px !important; padding: 15px !important; }
+  .btn-facturar { font-size: 20px !important; padding: 16px; }
+  .pago-opt { font-size: 15px !important; padding: 15px !important; }
+}
+
+/* Celulares muy chicos (≤ 330px): teléfono y email uno debajo del otro */
+@media (max-width: 330px) {
+  .row { flex-wrap: wrap; }
+  .col { flex-basis: 100%; }
+}
