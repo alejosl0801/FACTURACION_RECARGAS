@@ -279,8 +279,8 @@ body { background: linear-gradient(180deg, #f7f9fb 0%, #eaeef2 100%); }
 }
 .topbar-title { display: flex; align-items: center; gap: 9px; font-size: 18px; letter-spacing: .5px; }
 .brand-logo {
-  width: 36px; height: 36px; border-radius: 9px; object-fit: cover;
-  background: #000; box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  width: 38px; height: 38px; border-radius: 9px; object-fit: contain;
+  background: #fff; padding: 2px; box-shadow: 0 1px 4px rgba(0,0,0,.35);
 }
 
 .card {
