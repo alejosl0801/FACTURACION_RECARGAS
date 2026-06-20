@@ -15,11 +15,10 @@
   <!-- ============ PANTALLA: FACTURACIÓN ============ -->
   <section id="screen-main" class="screen active">
     <header class="topbar">
-      <span class="topbar-title">🔥 Nueva factura</span>
-      <button id="btn-import" title="Importar clientes"
-        style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">⚙️</button>
+      <span class="topbar-title" id="topbar-title">🔥 Nueva factura</span>
     </header>
     <input id="file-clientes" type="file" accept=".json,.csv,application/json" style="display:none" />
+    <div id="offline-bar" class="offline-bar">⚠️ Sin internet — revisá la señal</div>
 
     <div class="content">
       <!-- Cliente -->
@@ -75,6 +74,7 @@
     </div>
 
     <div class="footer-bar">
+      <p id="facturar-hint" class="facturar-hint"></p>
       <button id="btn-facturar" class="btn-facturar" disabled>FACTURAR</button>
     </div>
   </section>
@@ -82,9 +82,8 @@
   <!-- ============ PANTALLA 3: COMPROBANTE ============ -->
   <section id="screen-result" class="screen">
     <div class="result-actions no-print">
-      <button id="btn-imprimir" class="btn-secondary">🖨️ Imprimir</button>
-      <button id="btn-pdf" class="btn-secondary">📄 PDF Azur</button>
-      <button id="btn-nueva" class="btn-facturar">NUEVO</button>
+      <button id="btn-imprimir" class="btn-facturar">🖨️ IMPRIMIR</button>
+      <button id="btn-nueva" class="btn-secondary">NUEVO</button>
     </div>
     <div id="comprobante" class="comprobante"></div>
   </section>

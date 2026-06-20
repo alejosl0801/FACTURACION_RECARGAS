@@ -130,7 +130,17 @@ function parseCSVClientes(txt) {
   return arr;
 }
 
-$("#btn-import").addEventListener("click", () => $("#file-clientes").click());
+/* Importar clientes está OCULTO para Fabiola: se abre manteniendo
+   presionado el título (🔥) ~1.2 s. Así no lo toca por error. */
+(function () {
+  const t = $("#topbar-title");
+  let timer = null;
+  const start = () => { timer = setTimeout(() => $("#file-clientes").click(), 1200); };
+  const cancel = () => { if (timer) clearTimeout(timer); };
+  ["mousedown", "touchstart"].forEach((ev) => t.addEventListener(ev, start));
+  ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((ev) => t.addEventListener(ev, cancel));
+})();
+
 $("#file-clientes").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -161,11 +171,21 @@ function setSriMsg(texto, esError) {
   el.className = "sri-msg" + (esError ? " error" : "");
 }
 
-/* Consulta el SRI a través de tu worker (devuelve {razonSocial, direccion}). */
+/* Consulta el SRI a través de tu worker (devuelve {razonSocial, direccion}).
+   Reintenta 1 vez si la red falla (consulta de solo lectura, seguro reintentar). */
 async function fetchSRI(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  return JSON.parse(await r.text());
+  let err;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return JSON.parse(await r.text());
+    } catch (e) {
+      err = e;
+      await new Promise((res) => setTimeout(res, 800));
+    }
+  }
+  throw err;
 }
 
 /* Busca, dentro de un objeto JSON (aunque esté anidado), el valor de la
@@ -302,11 +322,14 @@ document.querySelectorAll(".cat-tab").forEach((btn) => {
   });
 });
 
+function vibrar(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
 function agregar(cod) {
   carrito[cod] = (carrito[cod] || 0) + 1;
   if (precioUnit[cod] === undefined) {
     precioUnit[cod] = PRODUCTOS.find((x) => x.cod === cod).precio;
   }
+  vibrar(30);
   renderCarrito();
 }
 
@@ -383,6 +406,12 @@ function actualizarBotonFacturar() {
   const tieneProductos = Object.keys(carrito).length > 0;
   const clienteOk = nombre.length > 0 && tipoIdentificacion(id) !== null;
   $("#btn-facturar").disabled = !(tieneProductos && clienteOk);
+
+  // Pista simple de qué falta (para que Fabiola no se trabe)
+  let hint = "";
+  if (!clienteOk) hint = "Falta el cliente";
+  else if (!tieneProductos) hint = "Falta agregar un producto";
+  $("#facturar-hint").textContent = hint;
 }
 
 /* =====================================================================
@@ -488,9 +517,12 @@ async function facturar() {
   const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso)) || "";
   if (exito && clave) {
     ultimaClave = clave;
+    vibrar([60, 40, 120]);
     renderFactura(ctx, data, clave);
     guardarLog(ctx.cli, clave, ctx.total);
   } else {
+    ultimaClave = "";
+    vibrar(200);
     renderRespuesta(data);
   }
   show("#screen-result");
@@ -509,6 +541,7 @@ function renderFactura(ctx, data, clave) {
   const row = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
 
   $("#comprobante").innerHTML =
+    '<div class="estado-ok no-print">✅ FACTURA LISTA</div>' +
     '<div class="ride">' +
       '<div class="ride-top">' +
         '<div class="ride-emisor">' +
@@ -589,35 +622,30 @@ function renderRespuesta(data) {
     '</div>';
 }
 
-/* Imprimir la vista actual */
-$("#btn-imprimir").addEventListener("click", () => window.print());
-
-/* Traer el PDF REAL de Azur (consulta/comprobante con la clave de acceso) */
-$("#btn-pdf").addEventListener("click", async () => {
-  if (!ultimaClave) { alert("Primero emití una factura."); return; }
-  try {
-    const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claveacceso: ultimaClave })
-    });
-    const txt = await r.text();
-    let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
-    // Buscar el PDF en la respuesta (URL o base64), tolerando varios nombres
-    const pdf = d && (d.pdf || d.PDF || d.archivo || d.base64 || d.pdfBase64 || (d.data && (d.data.pdf || d.data.PDF)));
-    if (pdf && /^https?:\/\//.test(pdf)) {
-      window.open(pdf, "_blank");
-    } else if (pdf) {
-      const a = document.createElement("a");
-      a.href = "data:application/pdf;base64," + pdf;
-      a.download = "factura-" + ultimaClave + ".pdf";
-      a.click();
-    } else {
-      alert("Azur respondió, pero no encontré el PDF. Respuesta:\n" + txt.slice(0, 400));
-    }
-  } catch (e) {
-    alert("No se pudo traer el PDF de Azur: " + (e.message || e));
+/* IMPRIMIR (un solo botón): intenta traer el PDF REAL de Azur y abrirlo;
+   si no se puede, imprime la vista actual. Para Fabiola: un toque y listo. */
+$("#btn-imprimir").addEventListener("click", async () => {
+  if (ultimaClave) {
+    try {
+      const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claveacceso: ultimaClave })
+      });
+      const txt = await r.text();
+      let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
+      const pdf = d && (d.pdf || d.PDF || d.archivo || d.base64 || d.pdfBase64 || (d.data && (d.data.pdf || d.data.PDF)));
+      if (pdf && /^https?:\/\//.test(pdf)) { window.open(pdf, "_blank"); return; }
+      if (pdf) {
+        const a = document.createElement("a");
+        a.href = "data:application/pdf;base64," + pdf;
+        a.download = "factura-" + ultimaClave + ".pdf";
+        a.click();
+        return;
+      }
+    } catch (e) { /* sin PDF de Azur → imprime la vista */ }
   }
+  window.print();
 });
 
 /* nueva factura → limpia todo */
@@ -666,6 +694,15 @@ function guardarLog(cli, numProv, total) {
    ===================================================================== */
 renderProductos();
 renderCarrito();
+
+/* Aviso simple de internet (online/offline) */
+function actualizarOffline() {
+  const bar = $("#offline-bar");
+  if (bar) bar.style.display = navigator.onLine ? "none" : "block";
+}
+window.addEventListener("online", actualizarOffline);
+window.addEventListener("offline", actualizarOffline);
+actualizarOffline();
 
 /* Registrar el service worker (network-first): hace la app instalable
    y siempre muestra la última versión. */
