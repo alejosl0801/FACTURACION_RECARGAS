@@ -229,6 +229,7 @@ async function buscarSRI() {
     if (local.correo) $("#cliente-email").value = local.correo;
     setSriMsg("✓ Cliente encontrado en tu base.");
     actualizarBotonFacturar();
+    guardarBorrador();
     return;
   }
 
@@ -254,6 +255,7 @@ async function buscarSRI() {
 
     setSriMsg("✓ Datos cargados del SRI. El teléfono y el correo no son públicos: completalos a mano si los necesitás.");
     actualizarBotonFacturar();
+    guardarBorrador();
   } catch (err) {
     setSriMsg("No se pudo consultar el SRI: " + (err.message || err) + ". Escribí los datos a mano.", true);
   } finally {
@@ -264,8 +266,9 @@ async function buscarSRI() {
 
 $("#btn-sri").addEventListener("click", buscarSRI);
 
-$("#cliente-id").addEventListener("input", actualizarBotonFacturar);
-$("#cliente-nombre").addEventListener("input", actualizarBotonFacturar);
+["#cliente-id", "#cliente-nombre", "#cliente-dir", "#cliente-tel", "#cliente-email"].forEach((sel) => {
+  $(sel).addEventListener("input", () => { actualizarBotonFacturar(); guardarBorrador(); });
+});
 
 /* Enter en cédula/RUC busca en el SRI; al salir del campo también
    (si tiene 10 o 13 dígitos). Sirve igual para cédula y RUC. */
@@ -283,6 +286,65 @@ function tipoIdentificacion(id) {
   if (id.length === 13) return "04";         // RUC
   if (id.length === 10) return "05";         // cédula
   return null;
+}
+
+/* Validación de cédula ecuatoriana (algoritmo módulo 10) */
+function validarCedula(ced) {
+  if (!/^\d{10}$/.test(ced)) return false;
+  const prov = parseInt(ced.slice(0, 2), 10);
+  if (prov < 1 || (prov > 24 && prov !== 30)) return false;
+  const coef = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+  let suma = 0;
+  for (let i = 0; i < 9; i++) { let v = parseInt(ced[i], 10) * coef[i]; if (v >= 10) v -= 9; suma += v; }
+  const dv = (10 - (suma % 10)) % 10;
+  return dv === parseInt(ced[9], 10);
+}
+/* true si la identificación PARECE tener un error de tipeo
+   (solo valida cédula y RUC de persona natural; no rechaza RUC de empresa) */
+function identificacionSospechosa(id) {
+  if (id === "9999999999999") return false;
+  if (id.length === 10) return !validarCedula(id);
+  if (id.length === 13) {
+    const tercer = parseInt(id[2], 10);
+    if (tercer < 6) return !validarCedula(id.slice(0, 10)); // RUC persona natural
+    return false; // jurídico/público: no validamos para no rechazar válidos
+  }
+  return true;
+}
+
+/* Forma de pago: marcar el botón activo según la variable */
+function setFormaPagoUI() {
+  document.querySelectorAll(".pago-opt").forEach((b) => b.classList.toggle("active", b.dataset.pago === formaPago));
+}
+
+/* Borrador de la venta (para no perderla si se cierra/recarga la app) */
+function guardarBorrador() {
+  try {
+    localStorage.setItem("borrador", JSON.stringify({
+      id: $("#cliente-id").value, nombre: $("#cliente-nombre").value, dir: $("#cliente-dir").value,
+      tel: $("#cliente-tel").value, email: $("#cliente-email").value,
+      carrito: carrito, precioUnit: precioUnit, formaPago: formaPago
+    }));
+  } catch (e) {}
+}
+function limpiarBorrador() { try { localStorage.removeItem("borrador"); } catch (e) {} }
+function restaurarSesion() {
+  const fp = localStorage.getItem("forma_pago"); // última forma de pago usada
+  if (fp) formaPago = fp;
+  try {
+    const b = JSON.parse(localStorage.getItem("borrador") || "null");
+    if (b) {
+      if (b.id) $("#cliente-id").value = b.id;
+      if (b.nombre) $("#cliente-nombre").value = b.nombre;
+      if (b.dir) $("#cliente-dir").value = b.dir;
+      if (b.tel) $("#cliente-tel").value = b.tel;
+      if (b.email) $("#cliente-email").value = b.email;
+      if (b.carrito && typeof b.carrito === "object") carrito = b.carrito;
+      if (b.precioUnit && typeof b.precioUnit === "object") precioUnit = b.precioUnit;
+      if (b.formaPago) formaPago = b.formaPago;
+    }
+  } catch (e) {}
+  setFormaPagoUI();
 }
 
 /* =====================================================================
@@ -388,6 +450,7 @@ function renderCarrito() {
   $("#t-total").textContent = money(subtotal + iva);
 
   actualizarBotonFacturar();
+  guardarBorrador();
 }
 
 /* forma de pago */
@@ -396,6 +459,8 @@ document.querySelectorAll(".pago-opt").forEach((btn) => {
     document.querySelectorAll(".pago-opt").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     formaPago = btn.dataset.pago;
+    try { localStorage.setItem("forma_pago", formaPago); } catch (e) {} // recordar la última
+    guardarBorrador();
   });
 });
 
@@ -489,6 +554,13 @@ let ultimaClave = "";  // clave de acceso de la última factura emitida
 async function facturar() {
   if (emitiendo) return;
   const ctx = contextoVenta();
+
+  // Seguridad: total en $0
+  if (ctx.total <= 0) { alert("El total es $0. Revisá los precios o agregá un producto."); return; }
+  // Aviso si la cédula/RUC parece tener un error de tipeo
+  if (identificacionSospechosa(ctx.cli.id)) {
+    if (!window.confirm("La cédula/RUC parece tener un error. ¿Emitir de todos modos?")) return;
+  }
   // Confirmación clara antes de emitir (evita facturas por error)
   if (!window.confirm("¿Emitir factura por " + money(ctx.total) + " a " + ctx.cli.nombre + "?")) return;
 
@@ -520,6 +592,7 @@ async function facturar() {
     vibrar([60, 40, 120]);
     renderFactura(ctx, data, clave);
     guardarLog(ctx.cli, clave, ctx.total);
+    limpiarBorrador(); // venta completada: ya no hay borrador
   } else {
     ultimaClave = "";
     vibrar(200);
@@ -658,6 +731,7 @@ $("#btn-nueva").addEventListener("click", () => {
   $("#cliente-tel").value = "";
   $("#cliente-email").value = "";
   setSriMsg("");
+  limpiarBorrador();
   renderProductos();
   renderCarrito();
   show("#screen-main");
@@ -692,6 +766,7 @@ function guardarLog(cli, numProv, total) {
 /* =====================================================================
    INIT
    ===================================================================== */
+restaurarSesion();   // recupera la venta a medio hacer y la última forma de pago
 renderProductos();
 renderCarrito();
 
