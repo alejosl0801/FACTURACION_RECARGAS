@@ -253,3 +253,19 @@ input:focus { outline: none; border-color: var(--rojo); }
   .comprobante { max-width: 100%; padding: 0; overflow: visible; }
   .ride { box-shadow: none; border: 1px solid #000; min-width: 0; width: 100%; }
 }
+
+/* ====== HISTORIAL ====== */
+.lista-historial { display: flex; flex-direction: column; gap: 10px; }
+.hist-item {
+  display: flex; align-items: center; gap: 12px; background: #fff;
+  padding: 16px; border-radius: 12px; box-shadow: var(--sombra);
+}
+.hist-info { flex: 1; min-width: 0; }
+.hist-cli { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-meta { font-size: 13px; color: var(--texto-sec); margin-top: 2px; }
+.hist-total { font-weight: 800; font-size: 17px; color: var(--rojo); white-space: nowrap; }
+.hist-print {
+  border: none; background: var(--verde); color: #fff; font-size: 22px;
+  width: 52px; height: 52px; border-radius: 12px; cursor: pointer;
+}
+.hist-print:active { background: var(--verde-osc); }

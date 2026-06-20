@@ -776,6 +776,38 @@ async function abrirPdfDeAzur(clave) {
 
 $("#btn-imprimir").addEventListener("click", () => abrirPdfDeAzur(ultimaClave));
 
+/* =====================================================================
+   HISTORIAL — últimas 20 facturas, con reimpresión (abre el PDF de Azur)
+   ===================================================================== */
+function renderHistorial() {
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem("comprobantes_log") || "[]"); } catch (e) {}
+  const cont = $("#lista-historial");
+  if (!log.length) {
+    cont.innerHTML = '<p style="text-align:center;color:#7f8c8d;padding:24px">Todavía no hay facturas emitidas.</p>';
+    return;
+  }
+  cont.innerHTML = "";
+  log.slice(0, 20).forEach((fac) => {
+    const d = new Date(fac.fecha);
+    const fecha = isNaN(d.getTime()) ? "" :
+      (pad(d.getDate(), 2) + "/" + pad(d.getMonth() + 1, 2) + "  " + pad(d.getHours(), 2) + ":" + pad(d.getMinutes(), 2));
+    const div = document.createElement("div");
+    div.className = "hist-item";
+    div.innerHTML =
+      '<div class="hist-info">' +
+        '<div class="hist-cli">' + escapeHtml(fac.cliente || "—") + '</div>' +
+        '<div class="hist-meta">' + fecha + (fac.identificacion ? " · " + escapeHtml(fac.identificacion) : "") + '</div>' +
+      '</div>' +
+      '<div class="hist-total">' + money(Number(fac.total) || 0) + '</div>' +
+      '<button class="hist-print">🖨️</button>';
+    div.querySelector(".hist-print").addEventListener("click", () => abrirPdfDeAzur(fac.numero));
+    cont.appendChild(div);
+  });
+}
+$("#btn-historial").addEventListener("click", () => { renderHistorial(); show("#screen-historial"); });
+$("#btn-hist-volver").addEventListener("click", () => show("#screen-main"));
+
 /* nueva factura → limpia todo */
 $("#btn-nueva").addEventListener("click", () => {
   carrito = {};
