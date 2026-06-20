@@ -753,14 +753,16 @@ function mostrarDiagnostico(txt) {
 
 /* IMPRIMIR: trae el PDF REAL de Azur (idéntico al suyo). Si no encuentra el
    PDF, muestra la respuesta de Azur para diagnosticar. */
-$("#btn-imprimir").addEventListener("click", async () => {
-  if (!ultimaClave) { window.print(); return; }
+// Clave de una factura YA emitida (solo para diagnóstico del PDF; consultar es gratis)
+const CLAVE_DEBUG = "2006202601095277397600120010020000034901234567815";
+
+async function abrirPdfDeAzur(clave) {
   let txt = "";
   try {
     const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claveacceso: ultimaClave })
+      body: JSON.stringify({ claveacceso: clave })
     });
     txt = await r.text();
     let d; try { d = JSON.parse(txt); } catch (e) { d = txt; }
@@ -768,8 +770,13 @@ $("#btn-imprimir").addEventListener("click", async () => {
     if (found && found.tipo === "url") { window.open(found.valor, "_blank"); return; }
     if (found && found.tipo === "base64" && abrirPdfBase64(found.valor)) return;
   } catch (e) { txt = "ERROR: " + (e.message || e); }
-  mostrarDiagnostico(txt); // no se encontró el PDF → mostrar qué devolvió Azur
-});
+  mostrarDiagnostico(txt);          // no se encontró el PDF → mostrar qué devolvió Azur
+  show("#screen-result");
+}
+
+$("#btn-imprimir").addEventListener("click", () => abrirPdfDeAzur(ultimaClave || CLAVE_DEBUG));
+const btnDiag = $("#btn-diag");
+if (btnDiag) btnDiag.addEventListener("click", () => abrirPdfDeAzur(CLAVE_DEBUG));
 
 /* nueva factura → limpia todo */
 $("#btn-nueva").addEventListener("click", () => {
