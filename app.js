@@ -587,10 +587,13 @@ async function facturar() {
   // Éxito SOLO si Azur dice creado:"true" (ojo: en errores también puede venir claveacceso)
   const exito = data && (data.creado === "true" || data.creado === true);
   const clave = (data && (data.claveacceso || data.claveAcceso || data.clave_acceso)) || "";
-  if (exito && clave) {
+  const msgErr = mensajeError(data);
+  // "Clave de acceso registrada" = la factura YA existe en Azur → es válida, la mostramos
+  const yaEmitida = !exito && clave && /registrad/i.test(msgErr);
+  if (exito || yaEmitida) {
     ultimaClave = clave;
     vibrar([60, 40, 120]);
-    renderFactura(ctx, data, clave);
+    renderFactura(ctx, data, clave, yaEmitida);
     guardarLog(ctx.cli, clave, ctx.total);
     limpiarBorrador(); // venta completada: ya no hay borrador
   } else {
@@ -601,8 +604,17 @@ async function facturar() {
   show("#screen-result");
 }
 
+/* Extrae el mensaje de error de Azur (errors puede ser arreglo u objeto) */
+function mensajeError(data) {
+  if (!data) return "";
+  let e = data.errors || data.error || "";
+  if (Array.isArray(e)) return e.join(" · ");
+  if (e && typeof e === "object") return Object.values(e).join(" · ");
+  return String(e);
+}
+
 /* Factura REAL autorizada (clave devuelta por Azur) */
-function renderFactura(ctx, data, clave) {
+function renderFactura(ctx, data, clave, yaEmitida) {
   const E = CONFIG.EMISOR;
   const a = new Date();
   const f = (x) => pad(x, 2);
@@ -614,7 +626,7 @@ function renderFactura(ctx, data, clave) {
   const row = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
 
   $("#comprobante").innerHTML =
-    '<div class="estado-ok no-print">✅ FACTURA LISTA</div>' +
+    '<div class="estado-ok no-print">' + (yaEmitida ? "✅ FACTURA (ya estaba emitida)" : "✅ FACTURA LISTA") + '</div>' +
     '<div class="ride">' +
       '<div class="ride-top">' +
         '<div class="ride-emisor">' +
@@ -680,14 +692,11 @@ function renderFactura(ctx, data, clave) {
 
 /* Si Azur NO autorizó: mostrar el/los motivo(s) de forma clara */
 function renderRespuesta(data) {
-  let cuerpo;
-  if (data && Array.isArray(data.errors) && data.errors.length) {
-    cuerpo = '<ul style="margin:8px 0 0 18px;font-size:13px;color:#000">' +
-      data.errors.map((e) => '<li>' + escapeHtml(String(e)) + '</li>').join("") + '</ul>';
-  } else {
-    cuerpo = '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:10px;' +
+  const msg = mensajeError(data);
+  const cuerpo = msg
+    ? '<p style="margin:8px 0 0;font-size:16px;color:#000;font-weight:600">' + escapeHtml(msg) + '</p>'
+    : '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:10px;' +
       'border-radius:6px;font-size:11px;color:#000">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
-  }
   $("#comprobante").innerHTML =
     '<div class="ride" style="padding:16px">' +
       '<div class="ride-tipo" style="color:#c0392b;font-size:18px">No se emitió la factura</div>' +
