@@ -731,24 +731,44 @@ function abrirPdfBase64(b64) {
   } catch (e) { return false; }
 }
 
-/* IMPRIMIR (un solo botón): trae el PDF REAL de Azur (idéntico al suyo);
-   si no se puede, imprime la vista. Para Fabiola: un toque y listo. */
+/* Muestra en pantalla la estructura de la respuesta de Azur (para diagnóstico) */
+function mostrarDiagnostico(txt) {
+  let resumen;
+  try {
+    const d = JSON.parse(txt);
+    resumen = Object.keys(d).map((k) => {
+      const v = d[k]; const t = typeof v;
+      const prev = (t === "string") ? v.slice(0, 70) : JSON.stringify(v).slice(0, 70);
+      return "• " + k + "  (" + t + (t === "string" ? ", " + v.length + " car" : "") + ")\n   " + prev;
+    }).join("\n\n");
+  } catch (e) { resumen = String(txt).slice(0, 1500); }
+  $("#comprobante").innerHTML =
+    '<div class="ride" style="padding:16px">' +
+      '<div class="ride-tipo" style="font-size:18px;color:#c0392b">Respuesta de Azur (consulta)</div>' +
+      '<p style="font-size:12px;margin:6px 0">Sacale una captura y mandámela para ajustar el PDF:</p>' +
+      '<pre style="white-space:pre-wrap;word-break:break-all;background:#f4f4f4;padding:10px;' +
+      'font-size:11px;color:#000">' + escapeHtml(resumen) + '</pre>' +
+    '</div>';
+}
+
+/* IMPRIMIR: trae el PDF REAL de Azur (idéntico al suyo). Si no encuentra el
+   PDF, muestra la respuesta de Azur para diagnosticar. */
 $("#btn-imprimir").addEventListener("click", async () => {
-  if (ultimaClave) {
-    try {
-      const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ claveacceso: ultimaClave })
-      });
-      const txt = await r.text();
-      let d; try { d = JSON.parse(txt); } catch (e) { d = txt; }
-      const found = buscarPdf(d);
-      if (found && found.tipo === "url") { window.open(found.valor, "_blank"); return; }
-      if (found && found.tipo === "base64" && abrirPdfBase64(found.valor)) return;
-    } catch (e) { /* sin PDF de Azur → imprime la vista */ }
-  }
-  window.print();
+  if (!ultimaClave) { window.print(); return; }
+  let txt = "";
+  try {
+    const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claveacceso: ultimaClave })
+    });
+    txt = await r.text();
+    let d; try { d = JSON.parse(txt); } catch (e) { d = txt; }
+    const found = buscarPdf(d);
+    if (found && found.tipo === "url") { window.open(found.valor, "_blank"); return; }
+    if (found && found.tipo === "base64" && abrirPdfBase64(found.valor)) return;
+  } catch (e) { txt = "ERROR: " + (e.message || e); }
+  mostrarDiagnostico(txt); // no se encontró el PDF → mostrar qué devolvió Azur
 });
 
 /* nueva factura → limpia todo */
