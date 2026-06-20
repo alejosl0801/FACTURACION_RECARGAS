@@ -163,6 +163,26 @@ $("#file-clientes").addEventListener("change", (e) => {
   reader.readAsText(file, "utf-8");
 });
 
+/* Auto-descarga de la base de clientes desde TU worker (nube privada).
+   Así aparecen en CUALQUIER celular sin importar a mano. Si ya hay
+   clientes guardados en este celular, no vuelve a descargar. */
+(function () {
+  let hay = 0;
+  try { hay = JSON.parse(localStorage.getItem("clientes_db") || "[]").length; } catch (e) {}
+  if (hay) return;
+  fetch(CONFIG.PROXY_URL + "clientes")
+    .then((r) => (r.ok ? r.text() : null))
+    .then((t) => {
+      if (!t) return;
+      const arr = JSON.parse(t);
+      if (Array.isArray(arr) && arr.length) {
+        localStorage.setItem("clientes_db", JSON.stringify(arr));
+        _clientesIndex = null;
+      }
+    })
+    .catch(() => {});
+})();
+
 /* =====================================================================
    Cliente
    ===================================================================== */
