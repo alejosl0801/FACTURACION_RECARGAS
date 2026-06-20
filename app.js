@@ -753,30 +753,28 @@ function mostrarDiagnostico(txt) {
 
 /* IMPRIMIR: trae el PDF REAL de Azur (idéntico al suyo). Si no encuentra el
    PDF, muestra la respuesta de Azur para diagnosticar. */
-// Clave de una factura YA emitida (solo para diagnóstico del PDF; consultar es gratis)
-const CLAVE_DEBUG = "2006202601095277397600120010020000034901234567815";
-
+/* Abre el PDF REAL de Azur (consulta/comprobante → campo enlace_pdf) */
 async function abrirPdfDeAzur(clave) {
-  let txt = "";
+  if (!clave) { window.print(); return; }
   try {
     const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ claveacceso: clave })
     });
-    txt = await r.text();
-    let d; try { d = JSON.parse(txt); } catch (e) { d = txt; }
-    const found = buscarPdf(d);
+    const txt = await r.text();
+    let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
+    const pdfUrl = d && (d.enlace_pdf || d.enlacePdf || d.pdf_url);
+    if (pdfUrl) { window.open(pdfUrl, "_blank"); return; }
+    // Respaldo: buscar PDF en cualquier forma; si no, imprimir la vista
+    const found = d && buscarPdf(d);
     if (found && found.tipo === "url") { window.open(found.valor, "_blank"); return; }
     if (found && found.tipo === "base64" && abrirPdfBase64(found.valor)) return;
-  } catch (e) { txt = "ERROR: " + (e.message || e); }
-  mostrarDiagnostico(txt);          // no se encontró el PDF → mostrar qué devolvió Azur
-  show("#screen-result");
+  } catch (e) { /* sin conexión → imprime la vista */ }
+  window.print();
 }
 
-$("#btn-imprimir").addEventListener("click", () => abrirPdfDeAzur(ultimaClave || CLAVE_DEBUG));
-const btnDiag = $("#btn-diag");
-if (btnDiag) btnDiag.addEventListener("click", () => abrirPdfDeAzur(CLAVE_DEBUG));
+$("#btn-imprimir").addEventListener("click", () => abrirPdfDeAzur(ultimaClave));
 
 /* nueva factura → limpia todo */
 $("#btn-nueva").addEventListener("click", () => {
