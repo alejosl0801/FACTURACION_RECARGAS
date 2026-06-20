@@ -695,8 +695,35 @@ function renderRespuesta(data) {
     '</div>';
 }
 
-/* IMPRIMIR (un solo botón): intenta traer el PDF REAL de Azur y abrirlo;
-   si no se puede, imprime la vista actual. Para Fabiola: un toque y listo. */
+/* Busca un PDF dentro de la respuesta de Azur (venga como base64 o URL) */
+function buscarPdf(o) {
+  let res = null;
+  (function walk(x) {
+    if (res || x == null) return;
+    if (typeof x === "string") {
+      const s = x.trim();
+      const i = s.indexOf("JVBERi0"); // "%PDF-" en base64
+      if (i >= 0) { res = { tipo: "base64", valor: s.slice(i) }; return; }
+      if (/^https?:\/\//.test(s) && /pdf|ride|comprobante/i.test(s)) { res = { tipo: "url", valor: s }; return; }
+      return;
+    }
+    if (typeof x === "object") { for (const k in x) { walk(x[k]); if (res) return; } }
+  })(o);
+  return res;
+}
+function abrirPdfBase64(b64) {
+  try {
+    const bin = atob(b64.replace(/\s/g, ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    window.open(url, "_blank");
+    return true;
+  } catch (e) { return false; }
+}
+
+/* IMPRIMIR (un solo botón): trae el PDF REAL de Azur (idéntico al suyo);
+   si no se puede, imprime la vista. Para Fabiola: un toque y listo. */
 $("#btn-imprimir").addEventListener("click", async () => {
   if (ultimaClave) {
     try {
@@ -706,16 +733,10 @@ $("#btn-imprimir").addEventListener("click", async () => {
         body: JSON.stringify({ claveacceso: ultimaClave })
       });
       const txt = await r.text();
-      let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
-      const pdf = d && (d.pdf || d.PDF || d.archivo || d.base64 || d.pdfBase64 || (d.data && (d.data.pdf || d.data.PDF)));
-      if (pdf && /^https?:\/\//.test(pdf)) { window.open(pdf, "_blank"); return; }
-      if (pdf) {
-        const a = document.createElement("a");
-        a.href = "data:application/pdf;base64," + pdf;
-        a.download = "factura-" + ultimaClave + ".pdf";
-        a.click();
-        return;
-      }
+      let d; try { d = JSON.parse(txt); } catch (e) { d = txt; }
+      const found = buscarPdf(d);
+      if (found && found.tipo === "url") { window.open(found.valor, "_blank"); return; }
+      if (found && found.tipo === "base64" && abrirPdfBase64(found.valor)) return;
     } catch (e) { /* sin PDF de Azur → imprime la vista */ }
   }
   window.print();
