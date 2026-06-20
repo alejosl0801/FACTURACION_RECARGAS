@@ -102,10 +102,26 @@
   <section id="screen-result" class="screen">
     <div class="result-actions no-print">
       <button id="btn-imprimir" class="btn-facturar">🖨️ IMPRIMIR</button>
+      <button id="btn-wpp" class="btn-secondary">📲 WhatsApp</button>
       <button id="btn-nueva" class="btn-secondary">NUEVO</button>
     </div>
     <div id="comprobante" class="comprobante"></div>
   </section>
+
+  <!-- ============ BIENVENIDA (primera vez) ============ -->
+  <div id="onboarding" class="onboarding">
+    <div class="onb-card">
+      <img src="logo-app.png" alt="" class="onb-logo" />
+      <h2>¡Bienvenida, Fabiola! 👋</h2>
+      <p>Facturar es facilísimo, en 3 pasos:</p>
+      <div class="onb-steps">
+        <div><b>1️⃣</b> Escribí la cédula o RUC y tocá <b>Buscar en SRI</b></div>
+        <div><b>2️⃣</b> Tocá la recarga para agregarla</div>
+        <div><b>3️⃣</b> Tocá el botón verde <b>FACTURAR</b></div>
+      </div>
+      <button id="onb-ok" class="btn-facturar">¡Empezar! 🚀</button>
+    </div>
+  </div>
 
   <!-- ============ OVERLAY CARGANDO ============ -->
   <div id="loading" class="loading">

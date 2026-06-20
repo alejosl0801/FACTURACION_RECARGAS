@@ -318,3 +318,29 @@ body { background: linear-gradient(180deg, #f7f9fb 0%, #eaeef2 100%); }
 }
 .saludo b { color: var(--rojo); }
 .saludo span { display: block; font-size: 13px; color: var(--texto-sec); font-weight: 500; margin-top: 3px; }
+
+/* ====== Confeti (celebración al emitir) ====== */
+.confeti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.confeti span { position: absolute; top: -34px; animation: caer 1.8s ease-in forwards; }
+@keyframes caer { to { transform: translateY(108vh) rotate(380deg); opacity: 0; } }
+
+/* ====== Bienvenida (onboarding) ====== */
+.onboarding {
+  display: none; position: fixed; inset: 0; z-index: 70;
+  background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 20px;
+}
+.onboarding.active { display: flex; }
+.onb-card {
+  background: #fff; border-radius: 20px; padding: 24px; max-width: 360px; width: 100%;
+  text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.3);
+}
+.onb-logo { width: 96px; height: 96px; object-fit: contain; }
+.onb-card h2 { color: var(--rojo); margin: 6px 0 4px; font-size: 22px; }
+.onb-card > p { color: var(--texto-sec); margin-bottom: 14px; }
+.onb-steps { text-align: left; display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.onb-steps div { background: var(--gris); border-radius: 10px; padding: 12px 14px; font-size: 15px; }
+
+/* ====== Botones de la pantalla de factura ====== */
+.result-actions { flex-wrap: wrap; }
+#btn-wpp { background: #25D366; color: #fff; border-color: #25D366; }
+#btn-wpp:active { background: #1da851; }

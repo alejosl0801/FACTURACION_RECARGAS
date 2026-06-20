@@ -229,7 +229,7 @@ async function buscarSRI() {
     const tel = local.tel || local.cel || "";
     if (tel) $("#cliente-tel").value = tel;
     if (local.correo) $("#cliente-email").value = local.correo;
-    setSriMsg("✓ Cliente encontrado en tu base.");
+    setSriMsg("✓ " + (local.nombre || "Cliente") + " — está en tu base.");
     actualizarBotonFacturar();
     guardarBorrador();
     return;
@@ -255,7 +255,7 @@ async function buscarSRI() {
     const direccion = buscarCampo(data, ["direccion", "direccioncompleta"]);
     if (direccion) $("#cliente-dir").value = direccion;
 
-    setSriMsg("✓ Datos cargados del SRI. El teléfono y el correo no son públicos: completalos a mano si los necesitás.");
+    setSriMsg("✓ " + nombre + " — datos del SRI cargados. Tel/correo no son públicos: completalos a mano si hace falta.");
     actualizarBotonFacturar();
     guardarBorrador();
   } catch (err) {
@@ -474,6 +474,12 @@ function actualizarBotonFacturar() {
   const clienteOk = nombre.length > 0 && tipoIdentificacion(id) !== null;
   $("#btn-facturar").disabled = !(tieneProductos && clienteOk);
 
+  // El botón muestra el monto a facturar
+  let total = 0;
+  Object.keys(carrito).forEach((c) => { total += (precioUnit[c] || 0) * carrito[c]; });
+  total *= (1 + CONFIG.IVA);
+  $("#btn-facturar").textContent = total > 0 ? "FACTURAR  " + money(total) : "FACTURAR";
+
   // Pista simple de qué falta (para que Fabiola no se trabe)
   let hint = "";
   if (!clienteOk) hint = "Falta el cliente";
@@ -550,8 +556,15 @@ function construirPayload(ctx) {
 
 $("#btn-facturar").addEventListener("click", facturar);
 
-let emitiendo = false; // evita doble emisión por doble toque
-let ultimaClave = "";  // clave de acceso de la última factura emitida
+let emitiendo = false;   // evita doble emisión por doble toque
+let ultimaClave = "";    // clave de acceso de la última factura emitida
+let ultimaFirma = "";    // firma de la última venta emitida (anti-duplicado)
+let ultimaVenta = {};    // datos de la última venta (para WhatsApp)
+
+function firmaVenta(ctx) {
+  return ctx.cli.id + "|" + ctx.total.toFixed(2) + "|" +
+    Object.keys(carrito).sort().map((c) => c + "x" + carrito[c]).join(",");
+}
 
 async function facturar() {
   if (emitiendo) return;
@@ -562,6 +575,10 @@ async function facturar() {
   // Aviso si la cédula/RUC parece tener un error de tipeo
   if (identificacionSospechosa(ctx.cli.id)) {
     if (!window.confirm("La cédula/RUC parece tener un error. ¿Emitir de todos modos?")) return;
+  }
+  // Aviso anti-duplicado: misma venta que la anterior
+  if (firmaVenta(ctx) === ultimaFirma) {
+    if (!window.confirm("Ya emitiste una factura igual recién (mismo cliente y productos). ¿Emitir otra?")) return;
   }
   // Confirmación clara antes de emitir (evita facturas por error)
   if (!window.confirm("¿Emitir factura por " + money(ctx.total) + " a " + ctx.cli.nombre + "?")) return;
@@ -594,7 +611,10 @@ async function facturar() {
   const yaEmitida = !exito && clave && /registrad/i.test(msgErr);
   if (exito || yaEmitida) {
     ultimaClave = clave;
+    ultimaFirma = firmaVenta(ctx);
+    ultimaVenta = { nombre: ctx.cli.nombre, tel: ctx.cli.tel, total: ctx.total };
     vibrar([60, 40, 120]);
+    if (exito) celebrar();
     renderFactura(ctx, data, clave, yaEmitida);
     guardarLog(ctx.cli, clave, ctx.total);
     limpiarBorrador(); // venta completada: ya no hay borrador
@@ -615,6 +635,18 @@ function mensajeError(data) {
   return String(e);
 }
 
+/* Traduce el error técnico de Azur a algo que Fabiola entienda */
+function errorAmigable(msg) {
+  const m = (msg || "").toLowerCase();
+  if (/registrad/.test(m)) return "Esta factura ya estaba emitida.";
+  if (/secuencial|numerac/.test(m)) return "Problema con la numeración. Intentá de nuevo.";
+  if (/api_?key|autoriz|token|llave/.test(m)) return "Problema de configuración. Avisá al administrador.";
+  if (/saldo|cr[eé]dito|plan|comprobantes disponibles/.test(m)) return "Sin saldo en Azur. Hay que recargar el plan.";
+  if (/cliente|comprador|identif|raz[oó]n/.test(m)) return "Faltan datos del cliente. Completalos e intentá de nuevo.";
+  if (/json|conex|tiempo|timeout/.test(m)) return "No se pudo conectar con Azur. Revisá el internet e intentá de nuevo.";
+  return msg || "No se pudo emitir. Intentá de nuevo.";
+}
+
 /* Factura REAL autorizada (clave devuelta por Azur) */
 function renderFactura(ctx, data, clave, yaEmitida) {
   const E = CONFIG.EMISOR;
@@ -628,7 +660,7 @@ function renderFactura(ctx, data, clave, yaEmitida) {
   const row = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
 
   $("#comprobante").innerHTML =
-    '<div class="estado-ok no-print">' + (yaEmitida ? "✅ FACTURA (ya estaba emitida)" : "✅ FACTURA LISTA") + '</div>' +
+    '<div class="estado-ok no-print">' + (yaEmitida ? "✅ Esta factura ya estaba emitida" : "✅ ¡Bien hecho, " + CONFIG.USUARIO + "! Factura lista 🎉") + '</div>' +
     '<div class="ride">' +
       '<div class="ride-top">' +
         '<div class="ride-emisor">' +
@@ -694,15 +726,14 @@ function renderFactura(ctx, data, clave, yaEmitida) {
 
 /* Si Azur NO autorizó: mostrar el/los motivo(s) de forma clara */
 function renderRespuesta(data) {
-  const msg = mensajeError(data);
-  const cuerpo = msg
-    ? '<p style="margin:8px 0 0;font-size:16px;color:#000;font-weight:600">' + escapeHtml(msg) + '</p>'
-    : '<pre style="white-space:pre-wrap;word-break:break-word;background:#f4f4f4;padding:10px;' +
-      'border-radius:6px;font-size:11px;color:#000">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+  const crudo = mensajeError(data);
+  const amigable = errorAmigable(crudo);
   $("#comprobante").innerHTML =
-    '<div class="ride" style="padding:16px">' +
-      '<div class="ride-tipo" style="color:#c0392b;font-size:18px">No se emitió la factura</div>' +
-      '<p style="margin:8px 0;font-size:12px">Azur informó:</p>' + cuerpo +
+    '<div class="ride" style="padding:18px;text-align:center">' +
+      '<div style="font-size:46px">⚠️</div>' +
+      '<div class="ride-tipo" style="color:#c0392b;font-size:20px;justify-content:center">No se pudo emitir</div>' +
+      '<p style="margin:10px 0;font-size:17px;color:#000;font-weight:700">' + escapeHtml(amigable) + '</p>' +
+      (crudo && crudo !== amigable ? '<p style="font-size:11px;color:#999">(' + escapeHtml(crudo) + ')</p>' : '') +
     '</div>';
 }
 
@@ -777,6 +808,30 @@ async function abrirPdfDeAzur(clave) {
 }
 
 $("#btn-imprimir").addEventListener("click", () => abrirPdfDeAzur(ultimaClave));
+
+/* Enviar la factura por WhatsApp a un número que se escribe en el momento
+   (puede ser distinto al teléfono del cliente). Manda el link del PDF de Azur. */
+$("#btn-wpp").addEventListener("click", async () => {
+  const sugerido = (ultimaVenta.tel || "").replace(/\D/g, "");
+  let num = window.prompt("¿A qué número de WhatsApp envío la factura? (ej: 0991234567)", sugerido);
+  if (num === null) return;
+  num = num.replace(/\D/g, "");
+  if (!num) { alert("Escribí un número de WhatsApp."); return; }
+  if (num.charAt(0) === "0") num = "593" + num.slice(1);      // 09... → 5939...
+  else if (num.length === 9) num = "593" + num;               // 9... → 5939...
+  let link = "";
+  try {
+    const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claveacceso: ultimaClave })
+    });
+    const d = JSON.parse(await r.text());
+    link = d.enlace_pdf || "";
+  } catch (e) { /* sin link, mando solo el texto */ }
+  const msg = "Hola " + (ultimaVenta.nombre || "") + ", aquí está su factura de PREVIFUEGO" +
+    (link ? ": " + link : ". Le llegará también por correo.");
+  window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(msg), "_blank");
+});
 
 /* =====================================================================
    HISTORIAL — últimas 20 facturas, con reimpresión (abre el PDF de Azur)
@@ -861,10 +916,45 @@ function setSaludo() {
   if (!el) return;
   const h = new Date().getHours();
   const parte = h < 12 ? "☀️ Buenos días" : (h < 19 ? "🌤️ Buenas tardes" : "🌙 Buenas noches");
-  el.innerHTML = parte + ', <b>' + CONFIG.USUARIO + '</b> 👋' +
-    '<span>Esta es tu app — emití fácil y rápido 💛</span>';
+  const subs = [
+    "Esta es tu app — emití fácil y rápido 💛",
+    "Que tengas un gran día 🌟",
+    "Vamos con esas facturas 💪",
+    "Sos la mejor, " + CONFIG.USUARIO + " 💖"
+  ];
+  const sub = subs[Math.floor(Math.random() * subs.length)];
+  el.innerHTML = parte + ', <b>' + CONFIG.USUARIO + '</b> 👋<span>' + sub + '</span>';
 }
 setSaludo();
+
+/* Onboarding: bienvenida la primera vez */
+(function () {
+  if (localStorage.getItem("onboard")) return;
+  const ob = $("#onboarding");
+  if (!ob) return;
+  ob.classList.add("active");
+  $("#onb-ok").addEventListener("click", () => {
+    localStorage.setItem("onboard", "1");
+    ob.classList.remove("active");
+  });
+})();
+
+/* Mini celebración al emitir */
+function celebrar() {
+  const cont = document.createElement("div");
+  cont.className = "confeti";
+  const ems = ["🎉", "✨", "🎊", "🔥", "⭐"];
+  for (let i = 0; i < 14; i++) {
+    const s = document.createElement("span");
+    s.textContent = ems[i % ems.length];
+    s.style.left = Math.random() * 100 + "%";
+    s.style.animationDelay = (Math.random() * 0.3).toFixed(2) + "s";
+    s.style.fontSize = (16 + Math.random() * 16).toFixed(0) + "px";
+    cont.appendChild(s);
+  }
+  document.body.appendChild(cont);
+  setTimeout(() => cont.remove(), 2200);
+}
 
 restaurarSesion();   // recupera la venta a medio hacer y la última forma de pago
 renderProductos();
