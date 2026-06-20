@@ -746,7 +746,7 @@ function buscarPdf(o) {
       const s = x.trim();
       const i = s.indexOf("JVBERi0"); // "%PDF-" en base64
       if (i >= 0) { res = { tipo: "base64", valor: s.slice(i) }; return; }
-      if (/^https?:\/\//.test(s) && /pdf|ride|comprobante/i.test(s)) { res = { tipo: "url", valor: s }; return; }
+      if (/^https?:\/\//.test(s) && /pdf|ride|comprobante|descargaryver/i.test(s)) { res = { tipo: "url", valor: s }; return; }
       return;
     }
     if (typeof x === "object") { for (const k in x) { walk(x[k]); if (res) return; } }
