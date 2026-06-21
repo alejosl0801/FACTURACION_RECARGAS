@@ -100,6 +100,33 @@ function guardarClienteActual() {
   if (i >= 0) db[i] = Object.assign({}, db[i], rec); else db.push(rec);
   localStorage.setItem("clientes_db", JSON.stringify(db));
   _clientesIndex = null;
+  sincronizarClienteNube(rec); // que aparezca también en los otros celulares
+}
+
+/* Sube el cliente a TU worker (nube) para que aparezca en CUALQUIER celular.
+   Es "best effort": si el worker todavía no tiene la nube de clientes
+   configurada (KV), simplemente no pasa nada y el cliente sigue guardado
+   en este celular. Nunca rompe la facturación. */
+function sincronizarClienteNube(rec) {
+  if (!rec || !rec.id || !rec.nombre) return;
+  try {
+    fetch(CONFIG.PROXY_URL + "cliente", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rec)
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+/* Pregunta al worker por un cliente que NO está en la base local
+   (lo pudo haber registrado otro celular). Devuelve el registro o null. */
+async function buscarClienteNube(id) {
+  try {
+    const r = await fetch(CONFIG.PROXY_URL + "cliente?id=" + encodeURIComponent(id));
+    if (!r.ok) return null;
+    const c = JSON.parse(await r.text());
+    return c && c.id ? c : null;
+  } catch (e) { return null; }
 }
 
 /* CSV con campos entre comillas (las direcciones tienen comas) */
@@ -234,6 +261,15 @@ function buscarCampo(obj, terminos) {
   return "";
 }
 
+/* Vuelca un registro de cliente (de la base local o de la nube) en el form */
+function llenarDatosCliente(c) {
+  $("#cliente-nombre").value = c.nombre || "";
+  if (c.dir) $("#cliente-dir").value = c.dir;
+  const tel = c.tel || c.cel || "";
+  if (tel) $("#cliente-tel").value = tel;
+  if (c.correo) $("#cliente-email").value = c.correo;
+}
+
 async function buscarSRI() {
   const raw = $("#cliente-id").value.trim();
   if (raw.length !== 10 && raw.length !== 13) {
@@ -244,11 +280,7 @@ async function buscarSRI() {
   // 1) Primero en TU base de clientes (datos completos)
   const local = buscarClienteLocal(raw);
   if (local) {
-    $("#cliente-nombre").value = local.nombre || "";
-    if (local.dir) $("#cliente-dir").value = local.dir;
-    const tel = local.tel || local.cel || "";
-    if (tel) $("#cliente-tel").value = tel;
-    if (local.correo) $("#cliente-email").value = local.correo;
+    llenarDatosCliente(local);
     setSriMsg("✓ " + (local.nombre || "Cliente") + " — está en tu base.");
     actualizarBotonFacturar();
     guardarBorrador();
@@ -262,6 +294,21 @@ async function buscarSRI() {
   setSriMsg("");
 
   try {
+    // 2) ¿Lo registró otro celular? Preguntamos a la nube (worker).
+    const nube = await buscarClienteNube(raw);
+    if (nube && nube.nombre) {
+      llenarDatosCliente(nube);
+      // lo dejamos también en este celular para la próxima
+      const db = clientesDB();
+      if (!db.some((c) => String(c.id).trim() === raw)) {
+        db.push(nube); localStorage.setItem("clientes_db", JSON.stringify(db)); _clientesIndex = null;
+      }
+      setSriMsg("✓ " + nube.nombre + " — cliente guardado en la nube.");
+      actualizarBotonFacturar();
+      guardarBorrador();
+      return;
+    }
+
     // El worker consulta el SRI y devuelve { razonSocial, direccion }
     const data = await fetchSRI(CONFIG.SRI_URL + "?ruc=" + encodeURIComponent(raw));
     const nombre = buscarCampo(data, ["razonsocial", "razon", "nombrecomercial", "nombre", "denominacion"]);
