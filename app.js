@@ -899,14 +899,25 @@ async function imprimirArrayBuffer(buf, blobUrl) {
       });
       area.style.display = "block";
       document.body.classList.add("printing");
-      await new Promise((r) => setTimeout(r, 200)); // que pinte los canvas
-      window.print();
-      setTimeout(() => {
+
+      // Restaurar la pantalla SOLO cuando se cierra el cuadro de impresión
+      // (no con un temporizador fijo: en el iPhone la vista previa tarda y
+      // si restauramos antes, se ve cambiar el PDF por la versión dibujada).
+      let restaurado = false;
+      const restaurar = () => {
+        if (restaurado) return;
+        restaurado = true;
         document.body.classList.remove("printing");
         area.style.display = "none";
         area.innerHTML = "";
         ocultos.forEach(([el, d]) => { el.style.display = d; });
-      }, 800);
+      };
+      try { window.addEventListener("afterprint", restaurar, { once: true }); } catch (e) {}
+      try { window.matchMedia("print").addEventListener("change", (e) => { if (!e.matches) restaurar(); }); } catch (e) {}
+      setTimeout(restaurar, 120000); // seguridad: si el evento no llega en 2 min
+
+      await new Promise((r) => setTimeout(r, 250)); // que pinte los canvas antes de imprimir
+      window.print();
       return;
     } catch (e) { /* cae al respaldo */ }
   }
