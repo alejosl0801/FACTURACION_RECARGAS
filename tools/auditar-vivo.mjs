@@ -72,7 +72,9 @@ const j = async (r) => { try { return await r.json(); } catch { return null; } }
 
       // pdf.js puede leerlo (igual que al imprimir)
       try {
-        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        const { createRequire } = await import("module");
+        const require = createRequire(import.meta.url);
+        const pdfjs = require("pdfjs-dist/legacy/build/pdf.js");
         const doc = await pdfjs.getDocument({ data: buf, disableWorker: true, isEvalSupported: false }).promise;
         ok(doc.numPages >= 1, "pdf.js lee el PDF real de Azur (" + doc.numPages + " página(s)) — esto es lo que se imprime");
         await doc.getPage(1);
