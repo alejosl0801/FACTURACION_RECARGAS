@@ -1,184 +1,148 @@
 /* =====================================================================
-   Robot "Activar nube de clientes"
+   Robot "Activar nube de clientes"  (worker dedicado)
    ---------------------------------------------------------------------
-   Corre dentro de GitHub Actions (que SÍ tiene internet a Cloudflare).
-   Con un token de Cloudflare (guardado como secreto de GitHub):
-     1) Crea (o reutiliza) el KV namespace  CLIENTES_KV
-     2) Descarga el worker que YA está desplegado (azur-proxy)
-     3) Le parcha las rutas /cliente y /nube (sin tocar tus datos)
-     4) Lo vuelve a subir enlazado al KV
-     5) Verifica que /nube responda { kv: true }
+   Corre en GitHub Actions. Con un token de Cloudflare:
+     1) Resuelve la cuenta
+     2) Crea (o reutiliza) el KV namespace  CLIENTES_KV
+     3) SUBE un worker pequeño y nuevo: "nube-clientes"  (enlazado al KV)
+     4) Le activa el subdominio workers.dev
+     5) Verifica que responda  { kv: true }
 
-   Los 958 clientes y el token de Azur viven dentro del worker: el robot
-   los maneja en memoria y NUNCA los escribe en el repo ni en los logs.
+   NO toca el worker de facturación (azur-proxy). El worker de la nube no
+   contiene secretos ni datos: solo guarda/lee clientes en el KV. Por eso
+   su código puede vivir tranquilo acá en el repo.
+
+   Token necesario (secreto CF_API_TOKEN):
+     - Workers Scripts: Edit
+     - Workers KV Storage: Edit
    ===================================================================== */
 
 const TOKEN = process.env.CF_API_TOKEN;
 let ACCOUNT = process.env.CF_ACCOUNT_ID || "";
-const SCRIPT_NAME = process.env.CF_WORKER_NAME || "azur-proxy";
+const WORKER = process.env.CF_NUBE_WORKER || "nube-clientes";
 const KV_TITLE = "CLIENTES_KV";
 const API = "https://api.cloudflare.com/client/v4";
 const COMPAT_DATE = "2024-09-23";
 
-if (!TOKEN) {
-  console.error("✖ Falta el secreto CF_API_TOKEN en GitHub. No puedo continuar.");
-  process.exit(1);
-}
-
+if (!TOKEN) { console.error("✖ Falta el secreto CF_API_TOKEN en GitHub."); process.exit(1); }
 const H = { Authorization: "Bearer " + TOKEN };
 
 async function cf(path, opts = {}) {
   const r = await fetch(API + path, { ...opts, headers: { ...H, ...(opts.headers || {}) } });
   const ct = r.headers.get("content-type") || "";
   const body = ct.includes("application/json") ? await r.json() : await r.text();
-  return { ok: r.ok, status: r.status, body, headers: r.headers };
+  return { ok: r.ok, status: r.status, body };
 }
-
 function fail(msg, extra) {
   console.error("✖ " + msg);
   if (extra) console.error(typeof extra === "string" ? extra : JSON.stringify(extra, null, 2));
   process.exit(1);
 }
 
-/* ---- Parche idempotente: agrega env + rutas /nube y /cliente ---- */
-function parchar(code) {
-  let w = code;
-
-  // 1) pasar `env` al fetch (si no lo tiene ya)
-  if (/async fetch\(request\)\s*\{/.test(w)) {
-    w = w.replace("async fetch(request) {", "async fetch(request, env) {");
-  }
-
-  const yaCliente = /ruta === "cliente"/.test(w);
-  const yaNube = /ruta === "nube"/.test(w);
-  if (yaCliente && yaNube) return { code: w, changed: w !== code };
-
-  const ancla = `if (ruta === "clientes") {`;
-  if (!w.includes(ancla)) {
-    // Worker con otra forma: insertamos antes de la primera condición de ruta.
-    const alt = /(\n\s*\/\/ =+[^\n]*\n\s*if \(ruta === )/;
-    if (!alt.test(w)) fail("No reconozco la estructura del worker desplegado. ¿Es el azur-proxy correcto?");
-  }
-
-  let bloque = "";
-  if (!yaNube) {
-    bloque += `
-    // ===== Estado de la nube de clientes (¿está el KV enlazado?) =====
-    if (ruta === "nube") {
-      const kv = !!(env && env.CLIENTES_KV);
-      return new Response(JSON.stringify({ kv }), { headers: CORS });
+/* Código del worker de la nube (sin secretos, sin datos) */
+const WORKER_CODE = `export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const ruta = url.pathname.replace(/^\\//, "");
+    const CORS = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type" } });
     }
-`;
-  }
-  if (!yaCliente) {
-    bloque += `
-    // ===== Cliente individual en la nube (se sincroniza entre celulares) =====
+    if (ruta === "nube") {
+      return new Response(JSON.stringify({ kv: !!(env && env.CLIENTES_KV) }), { headers: CORS });
+    }
     if (ruta === "cliente") {
       const idQ = (url.searchParams.get("id") || "").trim();
       if (request.method === "GET") {
-        const fijo = (typeof CLIENTES !== "undefined" ? CLIENTES : []).find((c) => String(c.id).trim() === idQ);
-        if (fijo) return new Response(JSON.stringify(fijo), { headers: CORS });
         if (env && env.CLIENTES_KV) {
           const v = await env.CLIENTES_KV.get("cli:" + idQ);
           if (v) return new Response(v, { headers: CORS });
         }
-        return new Response(JSON.stringify({}), { status: 404, headers: CORS });
+        return new Response("{}", { status: 404, headers: CORS });
       }
       let rec = {};
       try { rec = JSON.parse((await request.text()) || "{}"); } catch (e) {}
       const id = String(rec.id || "").trim();
-      if (!id || !rec.nombre) return new Response(JSON.stringify({ ok: false }), { status: 400, headers: CORS });
+      if (!id || !rec.nombre) return new Response('{"ok":false}', { status: 400, headers: CORS });
       if (env && env.CLIENTES_KV) {
         await env.CLIENTES_KV.put("cli:" + id, JSON.stringify(rec));
-        return new Response(JSON.stringify({ ok: true }), { headers: CORS });
+        return new Response('{"ok":true}', { headers: CORS });
       }
-      return new Response(JSON.stringify({ ok: false, error: "KV no configurado" }), { headers: CORS });
+      return new Response('{"ok":false,"error":"KV no configurado"}', { headers: CORS });
     }
-`;
+    return new Response("{}", { headers: CORS });
   }
-
-  // Insertar el bloque justo después del cierre del bloque "clientes".
-  const idx = w.indexOf(ancla);
-  const cierre = w.indexOf("}", w.indexOf("}", idx) + 1) + 1; // cierra el if(...){ return ...; }
-  w = w.slice(0, cierre) + "\n" + bloque + w.slice(cierre);
-  return { code: w, changed: true };
-}
+};`;
 
 (async () => {
-  // 1) Resolver cuenta
+  // 1) Cuenta
   if (!ACCOUNT) {
     const a = await cf("/accounts?per_page=50");
-    if (!a.ok || !a.body.result || !a.body.result.length) fail("El token no puede ver ninguna cuenta de Cloudflare.", a.body);
-    if (a.body.result.length > 1)
-      console.log("ℹ Hay varias cuentas; uso la primera: " + a.body.result[0].name + ". (Podés fijar CF_ACCOUNT_ID si es otra.)");
+    if (!a.ok || !a.body.result || !a.body.result.length) fail("El token no ve ninguna cuenta.", a.body);
     ACCOUNT = a.body.result[0].id;
   }
   console.log("• Cuenta:", ACCOUNT);
 
-  // 2) KV namespace (crear o reutilizar)
+  // 2) KV (crear o reutilizar)
   let nsId = "";
   const list = await cf(`/accounts/${ACCOUNT}/storage/kv/namespaces?per_page=100`);
-  if (!list.ok) fail("No pude listar los KV. ¿El token tiene permiso 'Workers KV Storage: Edit'?", list.body);
-  const existente = (list.body.result || []).find((n) => n.title === KV_TITLE);
-  if (existente) { nsId = existente.id; console.log("• KV ya existía:", KV_TITLE, nsId); }
+  if (!list.ok) fail("No pude listar KV. ¿El token tiene 'Workers KV Storage: Edit'?", list.body);
+  const ex = (list.body.result || []).find((n) => n.title === KV_TITLE);
+  if (ex) { nsId = ex.id; console.log("• KV reutilizado:", nsId); }
   else {
     const cr = await cf(`/accounts/${ACCOUNT}/storage/kv/namespaces`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: KV_TITLE }),
     });
-    if (!cr.ok) fail("No pude crear el KV namespace.", cr.body);
-    nsId = cr.body.result.id;
-    console.log("• KV creado:", KV_TITLE, nsId);
+    if (!cr.ok) fail("No pude crear el KV.", cr.body);
+    nsId = cr.body.result.id; console.log("• KV creado:", nsId);
   }
 
-  // 3) Descargar el worker desplegado
-  const cont = await cf(`/accounts/${ACCOUNT}/workers/scripts/${SCRIPT_NAME}/content`);
-  if (!cont.ok) fail(`No pude descargar el worker "${SCRIPT_NAME}". ¿El nombre es correcto y el token tiene 'Workers Scripts: Edit'?`, cont.body);
-
-  // El contenido puede venir como JS directo o como multipart (módulos).
-  let mainName = "worker.js";
-  let code = "";
-  const ctype = cont.headers.get("content-type") || "";
-  if (ctype.includes("multipart")) {
-    const text = typeof cont.body === "string" ? cont.body : "";
-    const m = text.match(/filename="([^"]+)"[\s\S]*?\r?\n\r?\n([\s\S]*?)\r?\n--/);
-    if (!m) fail("No pude leer el módulo del worker (multipart).");
-    mainName = m[1]; code = m[2];
-  } else {
-    code = typeof cont.body === "string" ? cont.body : JSON.stringify(cont.body);
-  }
-  if (!/export\s+default/.test(code)) fail("El worker descargado no tiene el formato esperado (export default).");
-
-  // 4) Parchar
-  const { code: patched, changed } = parchar(code);
-  if (!changed) console.log("• El worker ya tenía las rutas /cliente y /nube (solo aseguro el enlace KV).");
-  else console.log("• Worker parchado con /cliente y /nube.");
-
-  // 5) Subir con el binding KV
+  // 3) Subir el worker de la nube con el binding al KV
   const metadata = {
-    main_module: mainName,
+    main_module: "worker.js",
     compatibility_date: COMPAT_DATE,
     bindings: [{ type: "kv_namespace", name: "CLIENTES_KV", namespace_id: nsId }],
   };
   const fd = new FormData();
   fd.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  fd.append(mainName, new Blob([patched], { type: "application/javascript+module" }), mainName);
-
-  const up = await fetch(`${API}/accounts/${ACCOUNT}/workers/scripts/${SCRIPT_NAME}`, {
-    method: "PUT", headers: H, body: fd,
-  });
+  fd.append("worker.js", new Blob([WORKER_CODE], { type: "application/javascript+module" }), "worker.js");
+  const up = await fetch(`${API}/accounts/${ACCOUNT}/workers/scripts/${WORKER}`, { method: "PUT", headers: H, body: fd });
   const upBody = await up.json().catch(() => ({}));
-  if (!up.ok) fail("Falló la subida del worker.", upBody);
-  console.log("• Worker actualizado y enlazado al KV ✓");
+  if (!up.ok) fail("No pude subir el worker de la nube. ¿El token tiene 'Workers Scripts: Edit'?", upBody);
+  console.log("• Worker de la nube subido y enlazado al KV ✓");
 
-  // 6) Verificar
-  await new Promise((r) => setTimeout(r, 3000));
-  try {
-    const ver = await fetch(`https://${SCRIPT_NAME}.${(process.env.CF_WORKERS_SUBDOMAIN || "alejosl0801")}.workers.dev/nube`);
-    const j = await ver.json();
-    if (j && j.kv === true) console.log("\n✅ LISTO: la nube quedó ACTIVA. Los clientes nuevos se sincronizarán en todos los celulares.");
-    else console.log("\n⚠ El worker respondió pero kv =", j && j.kv, "— revisá el binding. (A veces tarda 1 min en propagar.)");
-  } catch (e) {
-    console.log("\n• Subida OK. No pude verificar /nube desde aquí (" + e.message + "). Abrí la app: el indicador ☁️ debería ponerse verde.");
+  // 4) Activar el subdominio workers.dev del worker
+  const sub = await cf(`/accounts/${ACCOUNT}/workers/scripts/${WORKER}/subdomain`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: true }),
+  });
+  if (!sub.ok) console.log("⚠ No pude activar el subdominio automáticamente (puede que ya esté activo).");
+  else console.log("• Subdominio workers.dev activado.");
+
+  // ¿Cuál es el subdominio de la cuenta? (para armar la URL pública)
+  let subdomain = process.env.CF_WORKERS_SUBDOMAIN || "";
+  if (!subdomain) {
+    const s = await cf(`/accounts/${ACCOUNT}/workers/subdomain`);
+    if (s.ok && s.body.result && s.body.result.subdomain) subdomain = s.body.result.subdomain;
   }
+  const publicUrl = subdomain ? `https://${WORKER}.${subdomain}.workers.dev/` : "(subdominio desconocido)";
+  console.log("• URL del worker de la nube:", publicUrl);
+
+  // 5) Verificar
+  if (subdomain) {
+    await new Promise((r) => setTimeout(r, 4000));
+    try {
+      const ver = await fetch(publicUrl + "nube");
+      const j = await ver.json();
+      if (j && j.kv === true) console.log("\n✅ LISTO: la nube quedó ACTIVA en " + publicUrl);
+      else console.log("\n⚠ Respondió pero kv =", j && j.kv, "(puede tardar 1 min en propagar).");
+    } catch (e) {
+      console.log("\n• Subida OK. No pude verificar desde aquí (" + e.message + "). Probá la URL en 1 min.");
+    }
+  }
+  console.log("\nURL_NUBE=" + publicUrl);
 })();

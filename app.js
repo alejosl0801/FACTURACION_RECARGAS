@@ -11,6 +11,9 @@ const CONFIG = {
   // del navegador y los intermediarios públicos poco confiables.
   PROXY_URL: "https://azur-proxy.alejosl0801.workers.dev/",
   SRI_URL: "https://azur-proxy.alejosl0801.workers.dev/sri",
+  // Worker dedicado a la nube de clientes (clientes nuevos sincronizados
+  // entre todos los celulares). Lo crea el robot de GitHub Actions.
+  NUBE_URL: "https://nube-clientes.alejosl0801.workers.dev/",
 
   USUARIO: "Fabiola", // a quién saluda la app (se siente suya)
 
@@ -110,7 +113,7 @@ function guardarClienteActual() {
 function sincronizarClienteNube(rec) {
   if (!rec || !rec.id || !rec.nombre) return;
   try {
-    fetch(CONFIG.PROXY_URL + "cliente", {
+    fetch(CONFIG.NUBE_URL + "cliente", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rec)
@@ -122,7 +125,7 @@ function sincronizarClienteNube(rec) {
    (lo pudo haber registrado otro celular). Devuelve el registro o null. */
 async function buscarClienteNube(id) {
   try {
-    const r = await fetch(CONFIG.PROXY_URL + "cliente?id=" + encodeURIComponent(id));
+    const r = await fetch(CONFIG.NUBE_URL + "cliente?id=" + encodeURIComponent(id));
     if (!r.ok) return null;
     const c = JSON.parse(await r.text());
     return c && c.id ? c : null;
@@ -226,7 +229,7 @@ $("#file-clientes").addEventListener("change", (e) => {
   }
 
   function comprobar() {
-    fetch(CONFIG.PROXY_URL + "nube")
+    fetch(CONFIG.NUBE_URL + "nube")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => { estado = { kv: !!d.kv, error: false }; pintar(); })
       .catch(() => { estado = { kv: false, error: true }; pintar(); });
