@@ -884,9 +884,13 @@ async function renderPdfEn(contenedor, buf) {
     const canvas = document.createElement("canvas");
     canvas.width = vp.width; canvas.height = vp.height;
     await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
-    canvas.style.width = "100%";
-    canvas.style.display = "block";
-    contenedor.appendChild(canvas);
+    // Importante: convertir el canvas a IMAGEN. El Safari del iPhone NO imprime
+    // los <canvas> (salen en blanco); las imágenes sí se imprimen siempre.
+    const img = document.createElement("img");
+    img.src = canvas.toDataURL("image/png");
+    img.style.width = "100%";
+    img.style.display = "block";
+    contenedor.appendChild(img);
   }
   return true;
 }

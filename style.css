@@ -246,7 +246,7 @@ input:focus { outline: none; border-color: var(--rojo); }
 
 /* Área para imprimir el PDF real de Azur (oculta en pantalla) */
 #print-area { display: none; }
-#print-area canvas { display: block; width: 100%; margin: 0 auto; page-break-after: always; }
+#print-area canvas, #print-area img { display: block; width: 100%; margin: 0 auto; page-break-after: always; }
 
 /* ====== IMPRESIÓN ====== */
 @media print {
@@ -264,7 +264,7 @@ input:focus { outline: none; border-color: var(--rojo); }
   body.printing .comprobante,
   body.printing .result-actions { display: none !important; }
   body.printing #print-area { display: block !important; }
-  body.printing #print-area canvas { border: 0; }
+  body.printing #print-area canvas, body.printing #print-area img { border: 0; }
 }
 
 /* ====== HISTORIAL ====== */
@@ -418,6 +418,6 @@ html, body { overflow-x: hidden; }           /* nada se sale de la pantalla */
 
 /* ====== Vista del PDF REAL de Azur en pantalla (reemplaza la factura dibujada) ====== */
 .factura-pdf { background:#fff; border-radius:10px; overflow:hidden; box-shadow:var(--sombra); }
-.factura-pdf canvas { width:100%; display:block; }
+.factura-pdf canvas, .factura-pdf img { width:100%; display:block; }
 .cargando-pdf { text-align:center; color:#7f8c8d; padding:34px 16px; font-size:16px; }
 .aviso-pdf { background:#fff3cd; color:#856404; padding:18px; border-radius:10px; font-size:15px; text-align:center; line-height:1.5; }
