@@ -5,6 +5,11 @@ name: Auditoria en vivo
 
 on:
   workflow_dispatch:
+    inputs:
+      clave:
+        description: "Clave de acceso (49 dígitos) de una factura para probar el PDF real (opcional)"
+        required: false
+        default: ""
 
 jobs:
   auditar:
@@ -17,4 +22,6 @@ jobs:
       - name: Instalar pdf.js
         run: npm init -y >/dev/null 2>&1 && npm i pdfjs-dist@3.11.174 >/dev/null 2>&1
       - name: Auditoría en vivo
+        env:
+          CLAVE_TEST: ${{ inputs.clave }}
         run: node tools/auditar-vivo.mjs

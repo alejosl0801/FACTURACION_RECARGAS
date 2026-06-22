@@ -44,11 +44,16 @@ const j = async (r) => { try { return await r.json(); } catch { return null; } }
   ok(d && d.nombre === "AUDITORIA EN VIVO", "Cliente: GET /cliente lo devuelve igual (sync entre celulares)");
 
   // 5) IMPRESIÓN REAL con una factura ya emitida
-  if (!Array.isArray(facturas) || !facturas.length) {
+  // La clave puede venir del historial de la nube o pasarse a mano (CLAVE_TEST).
+  let claves = [];
+  if (process.env.CLAVE_TEST) claves.push(process.env.CLAVE_TEST.trim());
+  if (Array.isArray(facturas)) facturas.forEach((f) => { if (f && f.numero) claves.push(f.numero); });
+
+  if (!claves.length) {
     aviso("No hay facturas en la nube todavía (abrí el Historial en un celular para que se suban). " +
           "No puedo probar la descarga de PDF real en este momento, pero el resto está verificado.");
   } else {
-    const clave = facturas[0].numero;
+    const clave = claves[0];
     info("Probando impresión con factura real (clave " + String(clave).slice(0, 12) + "...)");
     let pdfUrl = "";
     try {
