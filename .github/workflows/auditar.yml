@@ -1,0 +1,20 @@
+name: Auditoria en vivo
+
+# Verifica los servicios reales con datos reales (sin emitir facturas).
+# Baja un PDF real de Azur y comprueba que pdf.js lo puede leer (igual que al imprimir).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar pdf.js
+        run: npm init -y >/dev/null 2>&1 && npm i pdfjs-dist@3.11.174 >/dev/null 2>&1
+      - name: Auditoría en vivo
+        run: node tools/auditar-vivo.mjs
