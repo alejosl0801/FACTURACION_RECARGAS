@@ -1023,7 +1023,14 @@ function renderHistorial() {
     .then((r) => (r.ok ? r.json() : null))
     .then((nube) => {
       if (!Array.isArray(nube)) return;
-      const unidas = unirFacturas(nube, leerLogLocal());
+      const local = leerLogLocal();
+      // Subir a la nube las facturas que están solo en ESTE celular
+      // (p. ej. emitidas antes de tener la nube), para que se vean en todos.
+      const enNube = {};
+      nube.forEach((f) => { if (f && f.numero) enNube[f.numero] = 1; });
+      local.forEach((f) => { if (f && f.numero && !enNube[f.numero]) sincronizarFacturaNube(f); });
+
+      const unidas = unirFacturas(nube, local);
       // Deja el historial unificado también guardado en este celular.
       try { localStorage.setItem("comprobantes_log", JSON.stringify(unidas.slice(0, 100))); } catch (e) {}
       pintarHistorial(unidas);
