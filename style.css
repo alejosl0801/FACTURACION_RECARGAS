@@ -424,3 +424,12 @@ html, body { overflow-x: hidden; }           /* nada se sale de la pantalla */
 .factura-pdf canvas, .factura-pdf img { width:100%; display:block; }
 .cargando-pdf { text-align:center; color:#7f8c8d; padding:34px 16px; font-size:16px; }
 .aviso-pdf { background:#fff3cd; color:#856404; padding:18px; border-radius:10px; font-size:15px; text-align:center; line-height:1.5; }
+
+/* ====== Selector Recargas / Ventas ====== */
+.modo-tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+.modo-tab {
+  flex: 1; padding: 16px; font-size: 18px; font-weight: 800;
+  background: #fff; border: 2px solid var(--gris-borde);
+  border-radius: 12px; cursor: pointer; color: var(--texto);
+}
+.modo-tab.active { background: var(--verde); color: #fff; border-color: var(--verde); }

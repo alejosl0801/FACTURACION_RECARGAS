@@ -43,21 +43,33 @@ const CONFIG = {
    - Los duplicados de Azur (códigos terminados en "-") se omiten:
      se deja un solo registro por recarga.                            */
 const PRODUCTOS = [
+  // ====== RECARGAS ======
   // --- PQS (precio por defecto = libras × $1) ---
-  { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.50,   cat: "PQS" },
-  { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00,   cat: "PQS" },
-  { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00,  cat: "PQS" },
-  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 18.00,  cat: "PQS" },
+  { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.50,   cat: "PQS", tipo: "REC" },
+  { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00,   cat: "PQS", tipo: "REC" },
+  { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00,  cat: "PQS", tipo: "REC" },
+  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 18.00,  cat: "PQS", tipo: "REC" },
   // --- CO2 (precio por defecto = libras × $1) ---
-  { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00,   cat: "CO2" },
-  { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00,  cat: "CO2" },
-  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 18.00,  cat: "CO2" }
+  { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00,   cat: "CO2", tipo: "REC" },
+  { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00,  cat: "CO2", tipo: "REC" },
+  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 18.00,  cat: "CO2", tipo: "REC" },
+
+  // ====== VENTAS (extintores) — precio = subtotal, editable; IVA 15% se suma solo ======
+  // --- PQS ---
+  { cod: "VENT3PQS",  nombre: "EXTINTOR 3 LBS PQS",  precio: 13.00,  cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT5PQS",  nombre: "EXTINTOR 5 LBS PQS",  precio: 17.00,  cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT10PQS", nombre: "EXTINTOR 10 LBS PQS", precio: 24.00,  cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT20PQS", nombre: "EXTINTOR 20 LBS PQS", precio: 38.00,  cat: "PQS", tipo: "VENTA" },
+  // --- CO2 ---
+  { cod: "VENT5CO2",  nombre: "EXTINTOR 5 LBS CO2",  precio: 39.80,  cat: "CO2", tipo: "VENTA" },
+  { cod: "VENT10CO2", nombre: "EXTINTOR 10 LBS CO2", precio: 52.00,  cat: "CO2", tipo: "VENTA" }
 ];
 
 /* ============ ESTADO ============ */
 let carrito = {};            // { cod: cantidad }
 let precioUnit = {};         // { cod: precio unitario actual (editable) }
 let formaPago = "efectivo";
+let modoActivo = "REC";      // "REC" (recargas) o "VENTA" (ventas)
 let categoriaActiva = "PQS"; // pestaña de productos visible: "PQS" o "CO2"
 
 /* ============ HELPERS ============ */
@@ -462,7 +474,7 @@ function renderProductos(filtro = "") {
   cont.innerHTML = "";
   const f = filtro.trim().toLowerCase();
   PRODUCTOS
-    .filter((p) => p.cat === categoriaActiva)
+    .filter((p) => p.tipo === modoActivo && p.cat === categoriaActiva)
     .filter((p) => p.nombre.toLowerCase().includes(f) || p.cod.toLowerCase().includes(f))
     .forEach((p) => {
       const div = document.createElement("div");
@@ -480,6 +492,18 @@ function renderProductos(filtro = "") {
     cont.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:10px">Sin resultados</p>';
   }
 }
+
+/* selector RECARGAS / VENTAS */
+document.querySelectorAll(".modo-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".modo-tab").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    modoActivo = btn.dataset.modo;
+    categoriaActiva = "PQS"; // al cambiar de modo, volver a PQS
+    document.querySelectorAll(".cat-tab").forEach((b) => b.classList.toggle("active", b.dataset.cat === "PQS"));
+    renderProductos();
+  });
+});
 
 /* pestañas de categoría PQS / CO2 */
 document.querySelectorAll(".cat-tab").forEach((btn) => {
