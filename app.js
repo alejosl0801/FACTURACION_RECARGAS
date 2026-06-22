@@ -720,7 +720,7 @@ async function facturar() {
     ultimaVenta = { nombre: ctx.cli.nombre, tel: ctx.cli.tel, total: ctx.total };
     vibrar([60, 40, 120]);
     if (exito) celebrar();
-    renderFactura(ctx, data, clave, yaEmitida);
+    mostrarFacturaAzur(clave, yaEmitida); // muestra el PDF REAL de Azur en pantalla
     guardarLog(ctx.cli, clave, ctx.total);
     limpiarBorrador(); // venta completada: ya no hay borrador
   } else {
@@ -872,22 +872,30 @@ function abrirPdfBase64(b64) {
    imprimir SOLO ese PDF (oculta todo lo demás). Así lo que sale por la
    impresora es idéntico al de Azur, no la vista de la app.
    Si pdf.js no está disponible, abre/descarga el PDF como respaldo. */
+/* Dibuja todas las páginas de un PDF (ArrayBuffer) como imágenes dentro de
+   un elemento. Usa una copia del buffer para no inutilizar el original. */
+async function renderPdfEn(contenedor, buf) {
+  if (!window.pdfjsLib) return false;
+  const pdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+  contenedor.innerHTML = "";
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const vp = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+    canvas.style.width = "100%";
+    canvas.style.display = "block";
+    contenedor.appendChild(canvas);
+  }
+  return true;
+}
+
 async function imprimirArrayBuffer(buf, blobUrl) {
   const area = document.getElementById("print-area");
   if (window.pdfjsLib && area) {
     try {
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      area.innerHTML = "";
-      for (let p = 1; p <= pdf.numPages; p++) {
-        const page = await pdf.getPage(p);
-        const vp = page.getViewport({ scale: 2 });
-        const canvas = document.createElement("canvas");
-        canvas.width = vp.width; canvas.height = vp.height;
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
-        canvas.style.width = "100%";
-        canvas.style.display = "block";
-        area.appendChild(canvas);
-      }
+      if (!(await renderPdfEn(area, buf))) throw new Error("sin pdfjs");
       // Ocultar TODO lo demás por JavaScript (no depende del CSS, así que
       // aunque el celular tenga el estilo viejo en caché, imprime SOLO el PDF).
       const ocultos = [];
@@ -940,6 +948,49 @@ async function imprimirPdfUrl(pdfUrl) {
   window.open(pdfUrl, "_blank"); // respaldo
 }
 
+/* Consulta a Azur por una clave y devuelve el enlace del PDF (o ""). */
+async function enlacePdfDeClave(clave) {
+  try {
+    const r = await fetch(CONFIG.PROXY_URL + "consulta/comprobante", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claveacceso: clave })
+    });
+    const txt = await r.text();
+    let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
+    let url = (d && (d.enlace_pdf || d.enlacePdf || d.pdf_url)) || "";
+    if (!url) { const f = d && buscarPdf(d); if (f && f.tipo === "url") url = f.valor; }
+    return url;
+  } catch (e) { return ""; }
+}
+
+/* Tras emitir: muestra en pantalla el PDF REAL de Azur (no una versión dibujada).
+   Guarda el PDF en memoria para que IMPRIMIR sea instantáneo. */
+let ultimoPdfBuf = null;
+async function mostrarFacturaAzur(clave, yaEmitida) {
+  const cont = $("#comprobante");
+  ultimoPdfBuf = null;
+  cont.innerHTML =
+    '<div class="estado-ok no-print">' +
+      (yaEmitida ? "✅ Esta factura ya estaba emitida" : "✅ ¡Bien hecho, " + CONFIG.USUARIO + "! Factura lista 🎉") +
+    '</div>' +
+    '<div id="factura-pdf" class="factura-pdf"><p class="cargando-pdf">Cargando tu factura de Azur…</p></div>';
+  const destino = document.getElementById("factura-pdf");
+  try {
+    const url = await enlacePdfDeClave(clave);
+    if (!url) throw new Error("sin enlace");
+    const pr = await fetch(CONFIG.NUBE_URL + "pdf?url=" + encodeURIComponent(url));
+    if (!pr.ok) throw new Error("sin pdf");
+    const buf = await pr.arrayBuffer();
+    ultimoPdfBuf = buf.slice(0);
+    if (!(await renderPdfEn(destino, buf))) throw new Error("sin pdfjs");
+  } catch (e) {
+    destino.innerHTML =
+      '<div class="aviso-pdf">Tu factura ya está <b>emitida y autorizada</b> por el SRI.<br>' +
+      'Clave de acceso:<br><b style="word-break:break-all">' + escapeHtml(clave || "") + '</b><br><br>' +
+      'Si no se muestra acá, tocá <b>🖨️ IMPRIMIR</b> para abrir el PDF de Azur.</div>';
+  }
+}
+
 /* Muestra en pantalla la estructura de la respuesta de Azur (para diagnóstico) */
 function mostrarDiagnostico(txt) {
   let resumen;
@@ -983,7 +1034,11 @@ async function abrirPdfDeAzur(clave) {
   window.print();
 }
 
-$("#btn-imprimir").addEventListener("click", () => abrirPdfDeAzur(ultimaClave));
+$("#btn-imprimir").addEventListener("click", () => {
+  // Si ya tenemos el PDF de Azur cargado en pantalla, lo imprimimos directo.
+  if (ultimoPdfBuf) { imprimirArrayBuffer(ultimoPdfBuf.slice(0)); return; }
+  abrirPdfDeAzur(ultimaClave);
+});
 
 /* Enviar la factura por WhatsApp a un número que se escribe en el momento
    (puede ser distinto al teléfono del cliente). Manda el link del PDF de Azur. */
