@@ -1,0 +1,19 @@
+name: Probar nube de clientes
+
+# Prueba EN VIVO el worker de la nube (guardar/leer cliente).
+# NO toca Azur ni emite facturas. No necesita ningún secreto:
+# los endpoints de la nube son públicos.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Probar la nube en vivo
+        run: node tools/probar-nube.mjs
