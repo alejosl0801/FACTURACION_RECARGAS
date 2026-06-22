@@ -44,6 +44,10 @@ const j = async (r) => { try { return await r.json(); } catch { return null; } }
   r = await fetch(BASE + "cliente?id=NO-EXISTE-XYZ");
   ok(r.status === 404, "cliente inexistente → 404 (la app caería al SRI, correcto)");
 
+  // 5) Ruta /pdf activa y segura: rechaza URLs que no sean de azur.com.ec
+  r = await fetch(BASE + "pdf?url=" + encodeURIComponent("https://example.com/x.pdf"));
+  ok(r.status === 403, "ruta /pdf existe y bloquea URLs ajenas a azur.com.ec (403)");
+
   console.log(`\n=== RESULTADO EN VIVO: ${pass} OK / ${fail} fallos ===`);
   if (fail) process.exit(1);
   console.log("✅ La nube de clientes funciona de punta a punta, en producción.");
