@@ -246,7 +246,10 @@ input:focus { outline: none; border-color: var(--rojo); }
 
 /* Área para imprimir el PDF real de Azur (oculta en pantalla) */
 #print-area { display: none; }
-#print-area canvas, #print-area img { display: block; width: 100%; margin: 0 auto; page-break-after: always; }
+#print-area canvas, #print-area img { display: block; width: 100%; margin: 0 auto; }
+/* Salto de página SOLO entre páginas, nunca después de la última (evita hoja vacía) */
+#print-area img + img, #print-area canvas + canvas { page-break-before: always; }
+@page { margin: 8mm; }
 
 /* ====== IMPRESIÓN ====== */
 @media print {
