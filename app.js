@@ -985,11 +985,39 @@ $("#btn-wpp").addEventListener("click", async () => {
 /* =====================================================================
    HISTORIAL — últimas 20 facturas, con reimpresión (abre el PDF de Azur)
    ===================================================================== */
+function leerLogLocal() {
+  try { return JSON.parse(localStorage.getItem("comprobantes_log") || "[]"); } catch (e) { return []; }
+}
+/* Une las facturas de la nube con las locales, sin duplicar (por número),
+   ordenadas de la más nueva a la más vieja. */
+function unirFacturas(nube, local) {
+  const vistos = {}, out = [];
+  [].concat(nube || [], local || []).forEach((f) => {
+    if (!f || !f.numero || vistos[f.numero]) return;
+    vistos[f.numero] = 1; out.push(f);
+  });
+  out.sort((a, b) => String(b.fecha || "").localeCompare(String(a.fecha || "")));
+  return out;
+}
+
 function renderHistorial() {
-  let log = [];
-  try { log = JSON.parse(localStorage.getItem("comprobantes_log") || "[]"); } catch (e) {}
+  // 1) Pinta al instante lo local (rápido), y guarda lo de la nube cuando llegue.
+  pintarHistorial(leerLogLocal());
+  fetch(CONFIG.NUBE_URL + "facturas")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((nube) => {
+      if (!Array.isArray(nube)) return;
+      const unidas = unirFacturas(nube, leerLogLocal());
+      // Deja el historial unificado también guardado en este celular.
+      try { localStorage.setItem("comprobantes_log", JSON.stringify(unidas.slice(0, 100))); } catch (e) {}
+      pintarHistorial(unidas);
+    })
+    .catch(() => {});
+}
+
+function pintarHistorial(log) {
   const cont = $("#lista-historial");
-  if (!log.length) {
+  if (!log || !log.length) {
     cont.innerHTML = '<p style="text-align:center;color:#7f8c8d;padding:24px">Todavía no hay facturas emitidas.</p>';
     return;
   }
@@ -1040,8 +1068,7 @@ function guardarLog(cli, numProv, total) {
       const p = PRODUCTOS.find((x) => x.cod === cod);
       return { cod: p.cod, nombre: p.nombre, cant: carrito[cod], precio: precioUnit[cod] };
     });
-    const log = JSON.parse(localStorage.getItem("comprobantes_log") || "[]");
-    log.unshift({
+    const registro = {
       fecha: new Date().toISOString(),
       numero: numProv,
       cliente: cli.nombre,
@@ -1051,9 +1078,25 @@ function guardarLog(cli, numProv, total) {
       email: cli.email,
       total: Number(total.toFixed(2)),
       items: items
-    });
+    };
+    const log = JSON.parse(localStorage.getItem("comprobantes_log") || "[]");
+    log.unshift(registro);
     localStorage.setItem("comprobantes_log", JSON.stringify(log.slice(0, 100)));
+    sincronizarFacturaNube(registro); // que aparezca en todos los celulares
   } catch (e) { /* ignore */ }
+}
+
+/* Sube la factura al historial de la nube (best effort: si la nube no está
+   configurada, no pasa nada y el historial sigue local en este celular). */
+function sincronizarFacturaNube(registro) {
+  if (!registro || !registro.numero) return;
+  try {
+    fetch(CONFIG.NUBE_URL + "factura", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(registro)
+    }).catch(() => {});
+  } catch (e) {}
 }
 
 /* =====================================================================

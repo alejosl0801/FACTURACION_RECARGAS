@@ -54,6 +54,29 @@ const WORKER_CODE = `export default {
     if (ruta === "nube") {
       return new Response(JSON.stringify({ kv: !!(env && env.CLIENTES_KV) }), { headers: CORS });
     }
+    // ===== Historial de facturas en la nube (últimas 20, en todos los celulares) =====
+    if (ruta === "facturas") {
+      if (env && env.CLIENTES_KV) {
+        const v = await env.CLIENTES_KV.get("log:facturas");
+        return new Response(v || "[]", { headers: CORS });
+      }
+      return new Response("[]", { headers: CORS });
+    }
+    if (ruta === "factura") {
+      let rec = {};
+      try { rec = JSON.parse((await request.text()) || "{}"); } catch (e) {}
+      if (!rec || !rec.numero) return new Response('{"ok":false}', { status: 400, headers: CORS });
+      if (env && env.CLIENTES_KV) {
+        let arr = [];
+        try { arr = JSON.parse((await env.CLIENTES_KV.get("log:facturas")) || "[]"); } catch (e) {}
+        arr = arr.filter((x) => x && x.numero !== rec.numero);
+        arr.unshift(rec);
+        arr = arr.slice(0, 20);
+        await env.CLIENTES_KV.put("log:facturas", JSON.stringify(arr));
+        return new Response('{"ok":true}', { headers: CORS });
+      }
+      return new Response('{"ok":false,"error":"KV no configurado"}', { headers: CORS });
+    }
     if (ruta === "pdf") {
       // Reenvía el PDF de Azur con cabeceras CORS, para poder imprimirlo
       // directo desde la app. Solo permite URLs de azur.com.ec (seguridad).
