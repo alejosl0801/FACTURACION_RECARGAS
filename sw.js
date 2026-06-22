@@ -1,7 +1,7 @@
 /* Service worker "network-first": hace que la app sea instalable como PWA,
    pero SIEMPRE sirve la última versión desde internet (nunca una copia vieja).
    Solo guarda una copia de respaldo para poder abrir sin conexión. */
-const CACHE = "recargas-net-v1";
+const CACHE = "recargas-net-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));

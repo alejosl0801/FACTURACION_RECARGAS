@@ -884,13 +884,29 @@ async function imprimirArrayBuffer(buf, blobUrl) {
         const canvas = document.createElement("canvas");
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+        canvas.style.width = "100%";
+        canvas.style.display = "block";
         area.appendChild(canvas);
       }
+      // Ocultar TODO lo demás por JavaScript (no depende del CSS, así que
+      // aunque el celular tenga el estilo viejo en caché, imprime SOLO el PDF).
+      const ocultos = [];
+      Array.prototype.forEach.call(document.body.children, (el) => {
+        if (el !== area && el.style.display !== "none") {
+          ocultos.push([el, el.style.display]);
+          el.style.display = "none";
+        }
+      });
+      area.style.display = "block";
       document.body.classList.add("printing");
-      // pequeño respiro para que el navegador pinte los canvas antes de imprimir
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 200)); // que pinte los canvas
       window.print();
-      setTimeout(() => { document.body.classList.remove("printing"); area.innerHTML = ""; }, 800);
+      setTimeout(() => {
+        document.body.classList.remove("printing");
+        area.style.display = "none";
+        area.innerHTML = "";
+        ocultos.forEach(([el, d]) => { el.style.display = d; });
+      }, 800);
       return;
     } catch (e) { /* cae al respaldo */ }
   }
