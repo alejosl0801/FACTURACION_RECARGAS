@@ -864,9 +864,39 @@ function abrirPdfBase64(b64) {
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-    window.open(url, "_blank");
+    imprimirBlobUrl(url);
     return true;
   } catch (e) { return false; }
+}
+
+/* Imprime un PDF (blob mismo-origen) lanzando el cuadro de impresión nativo.
+   Si el navegador no deja imprimir desde el iframe, abre el PDF en pestaña. */
+function imprimirBlobUrl(url) {
+  let listo = false;
+  const ifr = document.createElement("iframe");
+  ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  ifr.src = url;
+  ifr.onload = () => {
+    try { ifr.contentWindow.focus(); ifr.contentWindow.print(); listo = true; }
+    catch (e) { window.open(url, "_blank"); }
+  };
+  document.body.appendChild(ifr);
+  // Respaldo: si en ~1.2 s no se pudo imprimir (algunos móviles), abre el PDF.
+  setTimeout(() => { if (!listo) window.open(url, "_blank"); }, 1200);
+}
+
+/* Trae el PDF de Azur por el worker (con CORS) y lo manda a imprimir directo.
+   Si algo falla, abre el PDF en una pestaña (respaldo). */
+async function imprimirPdfUrl(pdfUrl) {
+  try {
+    const r = await fetch(CONFIG.NUBE_URL + "pdf?url=" + encodeURIComponent(pdfUrl));
+    if (r.ok) {
+      const blob = await r.blob();
+      imprimirBlobUrl(URL.createObjectURL(blob));
+      return;
+    }
+  } catch (e) {}
+  window.open(pdfUrl, "_blank"); // respaldo
 }
 
 /* Muestra en pantalla la estructura de la respuesta de Azur (para diagnóstico) */
@@ -903,10 +933,10 @@ async function abrirPdfDeAzur(clave) {
     const txt = await r.text();
     let d; try { d = JSON.parse(txt); } catch (e) { d = null; }
     const pdfUrl = d && (d.enlace_pdf || d.enlacePdf || d.pdf_url);
-    if (pdfUrl) { window.open(pdfUrl, "_blank"); return; }
+    if (pdfUrl) { await imprimirPdfUrl(pdfUrl); return; }
     // Respaldo: buscar PDF en cualquier forma; si no, imprimir la vista
     const found = d && buscarPdf(d);
-    if (found && found.tipo === "url") { window.open(found.valor, "_blank"); return; }
+    if (found && found.tipo === "url") { await imprimirPdfUrl(found.valor); return; }
     if (found && found.tipo === "base64" && abrirPdfBase64(found.valor)) return;
   } catch (e) { /* sin conexión → imprime la vista */ }
   window.print();

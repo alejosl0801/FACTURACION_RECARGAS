@@ -399,3 +399,6 @@ html, body { overflow-x: hidden; }           /* nada se sale de la pantalla */
 .nube-badge.on   { background: #27ae60; }   /* verde: nube activa */
 .nube-badge.warn { background: #e67e22; }   /* naranja: falta activar */
 .nube-badge.off  { background: #7f8c8d; }   /* gris: sin conexión */
+
+/* Ayuda para imprimir en celular */
+.print-hint { text-align:center; font-size:13px; color:#7f8c8d; padding:8px 14px 0; margin:0; }

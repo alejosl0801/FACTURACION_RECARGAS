@@ -54,6 +54,22 @@ const WORKER_CODE = `export default {
     if (ruta === "nube") {
       return new Response(JSON.stringify({ kv: !!(env && env.CLIENTES_KV) }), { headers: CORS });
     }
+    if (ruta === "pdf") {
+      // Reenvía el PDF de Azur con cabeceras CORS, para poder imprimirlo
+      // directo desde la app. Solo permite URLs de azur.com.ec (seguridad).
+      const target = url.searchParams.get("url") || "";
+      let host = "";
+      try { host = new URL(target).hostname; } catch (e) {}
+      if (!/(^|\\.)azur\\.com\\.ec$/i.test(host)) {
+        return new Response('{"error":"url no permitida"}', { status: 403, headers: CORS });
+      }
+      const pr = await fetch(target);
+      const buf = await pr.arrayBuffer();
+      return new Response(buf, { headers: {
+        "Content-Type": "application/pdf",
+        "Access-Control-Allow-Origin": "*",
+        "Content-Disposition": "inline; filename=\\"factura.pdf\\"" } });
+    }
     if (ruta === "cliente") {
       const idQ = (url.searchParams.get("id") || "").trim();
       if (request.method === "GET") {
