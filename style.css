@@ -383,3 +383,19 @@ html, body { overflow-x: hidden; }           /* nada se sale de la pantalla */
   .ride-items th, .ride-items td { padding: 4px 5px; }
   .ride-tipo { font-size: 24px; }
 }
+
+/* ====== Indicador de la nube de clientes (estado de sincronización) ====== */
+.nube-badge {
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  color: #fff;
+}
+.nube-badge.on   { background: #27ae60; }   /* verde: nube activa */
+.nube-badge.warn { background: #e67e22; }   /* naranja: falta activar */
+.nube-badge.off  { background: #7f8c8d; }   /* gris: sin conexión */

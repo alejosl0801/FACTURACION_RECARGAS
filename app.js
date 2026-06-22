@@ -210,6 +210,41 @@ $("#file-clientes").addEventListener("change", (e) => {
     .catch(() => {});
 })();
 
+/* Indicador de NUBE: pregunta al worker si el KV está enlazado y lo
+   muestra en pantalla, para saber sin adivinar si los clientes nuevos
+   se están sincronizando entre celulares. Al tocarlo, explica el estado. */
+(function () {
+  const badge = $("#nube-badge");
+  if (!badge) return;
+  let estado = { kv: false, error: true };
+
+  function pintar() {
+    badge.hidden = false;
+    if (estado.error) { badge.textContent = "☁️ Nube: sin conexión"; badge.className = "nube-badge off"; }
+    else if (estado.kv) { badge.textContent = "☁️ Nube activa ✓"; badge.className = "nube-badge on"; }
+    else { badge.textContent = "☁️ Nube: falta activar"; badge.className = "nube-badge warn"; }
+  }
+
+  function comprobar() {
+    fetch(CONFIG.PROXY_URL + "nube")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => { estado = { kv: !!d.kv, error: false }; pintar(); })
+      .catch(() => { estado = { kv: false, error: true }; pintar(); });
+  }
+
+  badge.addEventListener("click", () => {
+    if (estado.error)
+      alert("No se pudo contactar la nube. Revisá el internet.\n\nSi persiste, hay que volver a pegar el worker en Cloudflare.");
+    else if (estado.kv)
+      alert("✅ La nube está activa.\n\nCada cliente nuevo que registres queda guardado y aparece en cualquier celular automáticamente.");
+    else
+      alert("⚠️ Falta activar la nube en Cloudflare (una sola vez):\n\n1) Storage & Databases → KV → Create namespace → nombre: CLIENTES_KV\n2) En el worker azur-proxy → Settings → Bindings → Add → KV namespace → variable CLIENTES_KV → elegí ese namespace.\n3) Deploy.\n\nMientras tanto la app funciona igual con el SRI.");
+  });
+
+  comprobar();
+  setTimeout(comprobar, 4000); // reintento por si la primera carga falló
+})();
+
 /* =====================================================================
    Cliente
    ===================================================================== */
