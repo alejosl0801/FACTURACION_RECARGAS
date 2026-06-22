@@ -1,0 +1,31 @@
+name: Activar nube de clientes
+
+# Robot que enlaza el worker de Cloudflare con un KV para que los clientes
+# nuevos se sincronicen entre TODOS los celulares.
+#
+# Necesita un secreto en GitHub:
+#   CF_API_TOKEN        (obligatorio) token de Cloudflare con permisos
+#                       "Workers Scripts: Edit" y "Workers KV Storage: Edit"
+# Opcionales (solo si el robot no los adivina):
+#   CF_ACCOUNT_ID       id de la cuenta de Cloudflare
+#   CF_WORKER_NAME      nombre del worker (por defecto: azur-proxy)
+#   CF_WORKERS_SUBDOMAIN subdominio workers.dev (por defecto: alejosl0801)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  activar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Enlazar worker con el KV
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_WORKER_NAME: ${{ secrets.CF_WORKER_NAME }}
+          CF_WORKERS_SUBDOMAIN: ${{ secrets.CF_WORKERS_SUBDOMAIN }}
+        run: node tools/setup-nube.mjs
