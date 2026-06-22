@@ -257,9 +257,13 @@ input:focus { outline: none; border-color: var(--rojo); }
   .comprobante { max-width: 100%; padding: 0; overflow: visible; }
   .ride { box-shadow: none; border: 1px solid #000; min-width: 0; width: 100%; }
 
-  /* Cuando imprimimos el PDF de Azur: mostrar SOLO ese PDF, ocultar todo lo demás */
+  /* Cuando imprimimos el PDF de Azur: mostrar SOLO ese PDF, ocultar todo lo demás.
+     Se usan selectores con ID para ganarle al "#screen-result{display:block!important}". */
   body.printing > * { display: none !important; }
-  body.printing > #print-area { display: block !important; }
+  body.printing #screen-result,
+  body.printing .comprobante,
+  body.printing .result-actions { display: none !important; }
+  body.printing #print-area { display: block !important; }
   body.printing #print-area canvas { border: 0; }
 }
 
