@@ -887,9 +887,19 @@ async function renderPdfEn(contenedor, buf) {
     // Importante: convertir el canvas a IMAGEN. El Safari del iPhone NO imprime
     // los <canvas> (salen en blanco); las imágenes sí se imprimen siempre.
     const img = document.createElement("img");
-    img.src = canvas.toDataURL("image/png");
     img.style.width = "100%";
     img.style.display = "block";
+    const dataUrl = canvas.toDataURL("image/png");
+    // Esperar a que la imagen esté REALMENTE cargada antes de seguir, para que
+    // nunca se imprima en blanco (carrera de tiempos en el iPhone).
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+      img.src = dataUrl;
+      // por si onload no dispara (cache/decode), reintento con decode y un tope
+      if (img.decode) { img.decode().then(resolve).catch(() => {}); }
+      setTimeout(resolve, 3000);
+    });
     contenedor.appendChild(img);
   }
   return true;
