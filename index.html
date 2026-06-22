@@ -132,6 +132,17 @@
     <p style="font-size:14px;color:#7f8c8d">Esto puede tardar unos segundos, no cierres la app.</p>
   </div>
 
+  <!-- Área donde se dibuja el PDF REAL de Azur para imprimirlo idéntico -->
+  <div id="print-area"></div>
+
+  <!-- pdf.js: convierte el PDF de Azur a imagen para imprimir igualito -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+  </script>
   <script src="barcode.js"></script>
   <script src="app.js"></script>
 </body>

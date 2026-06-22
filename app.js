@@ -863,36 +863,50 @@ function abrirPdfBase64(b64) {
     const bin = atob(b64.replace(/\s/g, ""));
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-    imprimirBlobUrl(url);
+    imprimirArrayBuffer(bytes.buffer, URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })));
     return true;
   } catch (e) { return false; }
 }
 
-/* Imprime un PDF (blob mismo-origen) lanzando el cuadro de impresión nativo.
-   Si el navegador no deja imprimir desde el iframe, abre el PDF en pestaña. */
-function imprimirBlobUrl(url) {
-  let listo = false;
-  const ifr = document.createElement("iframe");
-  ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
-  ifr.src = url;
-  ifr.onload = () => {
-    try { ifr.contentWindow.focus(); ifr.contentWindow.print(); listo = true; }
-    catch (e) { window.open(url, "_blank"); }
-  };
-  document.body.appendChild(ifr);
-  // Respaldo: si en ~1.2 s no se pudo imprimir (algunos móviles), abre el PDF.
-  setTimeout(() => { if (!listo) window.open(url, "_blank"); }, 1200);
+/* Dibuja el PDF REAL de Azur dentro de la página (con pdf.js) y manda a
+   imprimir SOLO ese PDF (oculta todo lo demás). Así lo que sale por la
+   impresora es idéntico al de Azur, no la vista de la app.
+   Si pdf.js no está disponible, abre/descarga el PDF como respaldo. */
+async function imprimirArrayBuffer(buf, blobUrl) {
+  const area = document.getElementById("print-area");
+  if (window.pdfjsLib && area) {
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      area.innerHTML = "";
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const vp = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width; canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+        area.appendChild(canvas);
+      }
+      document.body.classList.add("printing");
+      // pequeño respiro para que el navegador pinte los canvas antes de imprimir
+      await new Promise((r) => setTimeout(r, 150));
+      window.print();
+      setTimeout(() => { document.body.classList.remove("printing"); area.innerHTML = ""; }, 800);
+      return;
+    } catch (e) { /* cae al respaldo */ }
+  }
+  // Respaldo: abrir el PDF (al menos se ve / se puede guardar)
+  if (blobUrl) window.open(blobUrl, "_blank");
 }
 
-/* Trae el PDF de Azur por el worker (con CORS) y lo manda a imprimir directo.
+/* Trae el PDF de Azur por el worker (con CORS) y lo manda a imprimir.
    Si algo falla, abre el PDF en una pestaña (respaldo). */
 async function imprimirPdfUrl(pdfUrl) {
   try {
     const r = await fetch(CONFIG.NUBE_URL + "pdf?url=" + encodeURIComponent(pdfUrl));
     if (r.ok) {
-      const blob = await r.blob();
-      imprimirBlobUrl(URL.createObjectURL(blob));
+      const buf = await r.arrayBuffer();
+      const blobUrl = URL.createObjectURL(new Blob([buf], { type: "application/pdf" }));
+      await imprimirArrayBuffer(buf.slice(0), blobUrl);
       return;
     }
   } catch (e) {}

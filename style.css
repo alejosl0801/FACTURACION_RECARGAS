@@ -244,6 +244,10 @@ input:focus { outline: none; border-color: var(--rojo); }
 
 .ride-foot { font-size: 9px; color: #555; text-align: center; padding: 8px; border-top: 1px solid #ccc; }
 
+/* Área para imprimir el PDF real de Azur (oculta en pantalla) */
+#print-area { display: none; }
+#print-area canvas { display: block; width: 100%; margin: 0 auto; page-break-after: always; }
+
 /* ====== IMPRESIÓN ====== */
 @media print {
   body { background: #fff; }
@@ -252,6 +256,11 @@ input:focus { outline: none; border-color: var(--rojo); }
   #screen-result { display: block !important; }
   .comprobante { max-width: 100%; padding: 0; overflow: visible; }
   .ride { box-shadow: none; border: 1px solid #000; min-width: 0; width: 100%; }
+
+  /* Cuando imprimimos el PDF de Azur: mostrar SOLO ese PDF, ocultar todo lo demás */
+  body.printing > * { display: none !important; }
+  body.printing > #print-area { display: block !important; }
+  body.printing #print-area canvas { border: 0; }
 }
 
 /* ====== HISTORIAL ====== */
