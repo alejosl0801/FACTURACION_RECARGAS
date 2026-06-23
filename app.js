@@ -883,10 +883,7 @@ async function imprimirArrayBuffer(buf, blobUrl) {
         ocultos.forEach(([el, d]) => { el.style.display = d; });
       };
       try { window.addEventListener("afterprint", restaurar, { once: true }); } catch (e) {}
-      const mql = window.matchMedia("print");
-      const onPrintChange = (e) => { if (!e.matches) { restaurar(); try { mql.removeEventListener("change", onPrintChange); } catch (x) {} } };
-      try { mql.addEventListener("change", onPrintChange); } catch (e) {}
-      setTimeout(restaurar, 120000); // seguridad: si el evento no llega en 2 min
+      setTimeout(restaurar, 120000);
 
       await new Promise((r) => setTimeout(r, 250)); // que pinte los canvas antes de imprimir
       window.print();
