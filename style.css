@@ -246,35 +246,32 @@ input:focus { outline: none; border-color: var(--rojo); }
 
 /* Área para imprimir el PDF real de Azur (oculta en pantalla) */
 #print-area { display: none; }
-#print-area canvas, #print-area img {
-  display: block; margin: 0 auto;
-  max-width: 100%; max-height: 275mm; width: auto; height: auto;
-  page-break-inside: avoid;
-}
-#print-area img + img, #print-area canvas + canvas { page-break-before: always; }
-@page { size: A4 portrait; margin: 6mm; }
+@page { size: A4 portrait; margin: 10mm; }
 
 /* ====== IMPRESIÓN ====== */
 @media print {
-  body { background: #fff; }
+  body { background: #fff; margin: 0 !important; padding: 0 !important; }
   .no-print, .footer-bar, .topbar { display: none !important; }
   .screen { display: none !important; }
   #screen-result { display: block !important; }
   .comprobante { max-width: 100%; padding: 0; overflow: visible; }
   .ride { box-shadow: none; border: 1px solid #000; min-width: 0; width: 100%; }
 
-  /* Cuando imprimimos el PDF de Azur: mostrar SOLO ese PDF, ocultar todo lo demás.
-     Se usan selectores con ID para ganarle al "#screen-result{display:block!important}". */
   body.printing > * { display: none !important; }
-  body.printing #screen-result,
-  body.printing .comprobante,
-  body.printing .result-actions { display: none !important; }
+  body.printing #screen-result { display: none !important; }
   body.printing #print-area {
     display: block !important;
-    width: 100%; height: auto; overflow: hidden;
-    page-break-after: avoid;
+    width: 100%; margin: 0; padding: 0;
+    overflow: hidden;
   }
-  body.printing #print-area canvas, body.printing #print-area img { border: 0; }
+  body.printing #print-area img {
+    display: block; width: 100%; height: auto;
+    max-height: 275mm;
+    object-fit: contain;
+    border: 0;
+    page-break-inside: avoid;
+  }
+  body.printing #print-area img + img { page-break-before: always; }
 }
 
 /* ====== HISTORIAL ====== */

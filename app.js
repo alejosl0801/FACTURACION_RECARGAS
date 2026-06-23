@@ -777,83 +777,6 @@ function errorAmigable(msg) {
   return msg || "No se pudo emitir. Intentá de nuevo.";
 }
 
-/* Factura REAL autorizada (clave devuelta por Azur) */
-function renderFactura(ctx, data, clave, yaEmitida) {
-  const E = CONFIG.EMISOR;
-  const a = new Date();
-  const f = (x) => pad(x, 2);
-  const fechaTxt = f(a.getDate()) + "/" + f(a.getMonth() + 1) + "/" + a.getFullYear() +
-    " " + f(a.getHours()) + ":" + f(a.getMinutes());
-  const num = data.secuencial || data.numero || data.numeroFactura || "";
-  const ambiente = data.ambiente || "PRODUCCIÓN";
-  const barras = window.barcode39SVG(clave, { height: 55, narrow: 1, ratio: 3 });
-  const row = (l, v) => '<div><span>' + l + '</span><b>' + v + '</b></div>';
-
-  $("#comprobante").innerHTML =
-    '<div class="estado-ok no-print">' + (yaEmitida ? "✅ Esta factura ya estaba emitida" : "✅ ¡Bien hecho, " + CONFIG.USUARIO + "! Factura lista 🎉") + '</div>' +
-    '<div class="ride">' +
-      '<div class="ride-top">' +
-        '<div class="ride-emisor">' +
-          '<img class="ride-logo-img" src="logo.jpg" alt="PREVIFUEGO">' +
-          '<div class="ride-rs">' + E.razonSocial + '</div>' +
-          '<div><b>' + E.comercial + '</b> — Matriz</div>' +
-          '<div>Dir: ' + E.direccion + '</div>' +
-          '<div>' + E.email + '</div>' +
-          '<div>' + E.telefonos + '</div>' +
-          '<div>Obligado a llevar contabilidad: ' + E.contabilidad + '</div>' +
-        '</div>' +
-        '<div class="ride-doc">' +
-          '<div class="ride-tipo">FACTURA</div>' +
-          '<div class="ride-docbox">' +
-            '<div><span>R.U.C.:</span> <b>' + E.ruc + '</b></div>' +
-            (num ? '<div><span>No.:</span> <b>' + num + '</b></div>' : '') +
-            '<div class="ride-lbl">NÚMERO DE AUTORIZACIÓN</div>' +
-            '<div class="ride-cod">' + clave + '</div>' +
-            '<div><span>AMBIENTE:</span> <b>' + ambiente + '</b> &nbsp; EMISIÓN: NORMAL</div>' +
-            '<div><span>FECHA Y HORA:</span> ' + fechaTxt + '</div>' +
-          '</div>' +
-          '<div class="ride-barras">' + barras + '</div>' +
-          '<div class="ride-barras-txt">' + clave + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="ride-cliente">' +
-        '<div class="r2"><span><b>Razón Social / Nombres:</b> ' + ctx.cli.nombre + '</span>' +
-          '<span><b>Identificación:</b> ' + ctx.cli.id + '</span></div>' +
-        '<div class="r2"><span><b>Dirección:</b> ' + ctx.cli.dir + '</span>' +
-          '<span><b>Fecha Emisión:</b> ' + fechaTxt + '</span></div>' +
-        '<div class="r2"><span><b>Teléfono:</b> ' + ctx.cli.tel + '</span>' +
-          '<span><b>Email:</b> ' + ctx.cli.email + '</span></div>' +
-      '</div>' +
-      '<table class="ride-items"><thead><tr>' +
-        '<th>Cód.</th><th>Cant.</th><th>Descripción</th>' +
-        '<th class="num">P. Unitario</th><th class="num">Descuento</th><th class="num">Subtotal</th>' +
-        '</tr></thead><tbody>' + ctx.filas + '</tbody></table>' +
-      '<div class="ride-bottom">' +
-        '<div class="ride-adic">' +
-          '<div class="ride-sech">Información Adicional</div>' +
-          '<table class="ride-fp"><thead><tr><th>Forma de Pago</th><th class="num">Valor</th>' +
-            '<th>Plazo</th><th>Tiempo</th></tr></thead>' +
-            '<tbody><tr><td>' + ctx.formaTxt + '</td><td class="num">' + money(ctx.total) + '</td>' +
-            '<td>—</td><td>—</td></tr></tbody></table>' +
-        '</div>' +
-        '<div class="ride-tot">' +
-          row('Subtotal 15%', money(ctx.subtotal)) +
-          row('Subtotal 0%', '$0.00') +
-          row('Subtotal no objeto de IVA', '$0.00') +
-          row('Subtotal Exento de IVA', '$0.00') +
-          row('Subtotal Sin Impuestos', money(ctx.subtotal)) +
-          row('Descuento', '$0.00') +
-          row('ICE', '$0.00') +
-          row('IVA 15%', money(ctx.iva)) +
-          row('IRBPNR', '$0.00') +
-          row('Propina', '$0.00') +
-          '<div class="ride-vt"><span>VALOR TOTAL</span><b>' + money(ctx.total) + '</b></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="ride-foot">Comprobante electrónico AUTORIZADO por el SRI · Clave de acceso: ' + clave + '</div>' +
-    '</div>';
-}
-
 /* Si Azur NO autorizó: mostrar el/los motivo(s) de forma clara */
 function renderRespuesta(data) {
   const crudo = mensajeError(data);
@@ -1032,28 +955,6 @@ async function mostrarFacturaAzur(clave, yaEmitida) {
   }
 }
 
-/* Muestra en pantalla la estructura de la respuesta de Azur (para diagnóstico) */
-function mostrarDiagnostico(txt) {
-  let resumen;
-  try {
-    const d = JSON.parse(txt);
-    resumen = Object.keys(d).map((k) => {
-      const v = d[k]; const t = typeof v;
-      const prev = (t === "string") ? v.slice(0, 70) : JSON.stringify(v).slice(0, 70);
-      return "• " + k + "  (" + t + (t === "string" ? ", " + v.length + " car" : "") + ")\n   " + prev;
-    }).join("\n\n");
-  } catch (e) { resumen = String(txt).slice(0, 1500); }
-  $("#comprobante").innerHTML =
-    '<div class="ride" style="padding:16px">' +
-      '<div class="ride-tipo" style="font-size:18px;color:#c0392b">Respuesta de Azur (consulta)</div>' +
-      '<p style="font-size:12px;margin:6px 0">Sacale una captura y mandámela para ajustar el PDF:</p>' +
-      '<pre style="white-space:pre-wrap;word-break:break-all;background:#f4f4f4;padding:10px;' +
-      'font-size:11px;color:#000">' + escapeHtml(resumen) + '</pre>' +
-    '</div>';
-}
-
-/* IMPRIMIR: trae el PDF REAL de Azur (idéntico al suyo). Si no encuentra el
-   PDF, muestra la respuesta de Azur para diagnosticar. */
 /* Abre el PDF REAL de Azur (consulta/comprobante → campo enlace_pdf) */
 async function abrirPdfDeAzur(clave) {
   if (!clave) { window.print(); return; }
@@ -1076,8 +977,11 @@ async function abrirPdfDeAzur(clave) {
 }
 
 $("#btn-imprimir").addEventListener("click", () => {
-  // Si ya tenemos el PDF de Azur cargado en pantalla, lo imprimimos directo.
-  if (ultimoPdfBuf) { imprimirArrayBuffer(ultimoPdfBuf.slice(0)); return; }
+  if (ultimoPdfBuf) {
+    const blob = new Blob([ultimoPdfBuf], { type: "application/pdf" });
+    imprimirArrayBuffer(ultimoPdfBuf.slice(0), URL.createObjectURL(blob));
+    return;
+  }
   abrirPdfDeAzur(ultimaClave);
 });
 
