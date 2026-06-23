@@ -45,14 +45,14 @@ const CONFIG = {
 const PRODUCTOS = [
   // ====== RECARGAS ======
   // --- PQS (precio por defecto = libras × $1) ---
-  { cod: "REC3PQS",   nombre: "Recarga 3 lb PQS",    precio: 3.50,   cat: "PQS", tipo: "REC" },
-  { cod: "REC5PQS",   nombre: "Recarga 5 lb PQS",    precio: 5.00,   cat: "PQS", tipo: "REC" },
-  { cod: "REC10PQS",  nombre: "Recarga 10 lb PQS",   precio: 10.00,  cat: "PQS", tipo: "REC" },
-  { cod: "REC20PQS",  nombre: "Recarga 20 lb PQS",   precio: 18.00,  cat: "PQS", tipo: "REC" },
+  { cod: "REC3PQS",   nombre: "RECARGA 3 LB PQS",    precio: 3.50,   cat: "PQS", tipo: "REC" },
+  { cod: "REC5PQS",   nombre: "RECARGA 5 LB PQS",    precio: 5.00,   cat: "PQS", tipo: "REC" },
+  { cod: "REC10PQS",  nombre: "RECARGA 10 LB PQS",   precio: 10.00,  cat: "PQS", tipo: "REC" },
+  { cod: "REC20PQS",  nombre: "RECARGA 20 LB PQS",   precio: 18.00,  cat: "PQS", tipo: "REC" },
   // --- CO2 (precio por defecto = libras × $1) ---
-  { cod: "REC5CO2",   nombre: "Recarga 5 lb CO2",    precio: 5.00,   cat: "CO2", tipo: "REC" },
-  { cod: "REC10CO2",  nombre: "Recarga 10 lb CO2",   precio: 10.00,  cat: "CO2", tipo: "REC" },
-  { cod: "REC20CO2",  nombre: "Recarga 20 lb CO2",   precio: 18.00,  cat: "CO2", tipo: "REC" },
+  { cod: "REC5CO2",   nombre: "RECARGA 5 LB CO2",    precio: 5.00,   cat: "CO2", tipo: "REC" },
+  { cod: "REC10CO2",  nombre: "RECARGA 10 LB CO2",   precio: 10.00,  cat: "CO2", tipo: "REC" },
+  { cod: "REC20CO2",  nombre: "RECARGA 20 LB CO2",   precio: 18.00,  cat: "CO2", tipo: "REC" },
 
   // ====== VENTAS (extintores) — precio = subtotal, editable; IVA 15% se suma solo ======
   // --- PQS ---
@@ -545,6 +545,7 @@ function renderCarrito() {
   let subtotal = 0;
   cods.forEach((cod) => {
     const p = PRODUCTOS.find((x) => x.cod === cod);
+    if (!p) { delete carrito[cod]; delete precioUnit[cod]; return; }
     const cant = carrito[cod];
     const precio = precioUnit[cod];
     const sub = precio * cant;
@@ -959,7 +960,9 @@ async function imprimirArrayBuffer(buf, blobUrl) {
         ocultos.forEach(([el, d]) => { el.style.display = d; });
       };
       try { window.addEventListener("afterprint", restaurar, { once: true }); } catch (e) {}
-      try { window.matchMedia("print").addEventListener("change", (e) => { if (!e.matches) restaurar(); }); } catch (e) {}
+      const mql = window.matchMedia("print");
+      const onPrintChange = (e) => { if (!e.matches) { restaurar(); try { mql.removeEventListener("change", onPrintChange); } catch (x) {} } };
+      try { mql.addEventListener("change", onPrintChange); } catch (e) {}
       setTimeout(restaurar, 120000); // seguridad: si el evento no llega en 2 min
 
       await new Promise((r) => setTimeout(r, 250)); // que pinte los canvas antes de imprimir
