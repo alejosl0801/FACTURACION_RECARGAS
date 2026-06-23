@@ -854,12 +854,22 @@ async function renderPdfEn(contenedor, buf) {
 }
 
 async function imprimirArrayBuffer(buf, blobUrl) {
+  // iOS Safari: abrir el PDF directo en el visor nativo de Safari.
+  // Así se imprime sin encabezados del navegador (URL, fecha), a tamaño real,
+  // y sin los bugs de canvas→image→window.print().
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    if (!blobUrl && buf) {
+      blobUrl = URL.createObjectURL(new Blob([buf], { type: "application/pdf" }));
+    }
+    if (blobUrl) { window.open(blobUrl, "_blank"); return; }
+  }
+
   const area = document.getElementById("print-area");
   if (window.pdfjsLib && area) {
     try {
       if (!(await renderPdfEn(area, buf))) throw new Error("sin pdfjs");
-      // Ocultar TODO lo demás por JavaScript (no depende del CSS, así que
-      // aunque el celular tenga el estilo viejo en caché, imprime SOLO el PDF).
       const ocultos = [];
       Array.prototype.forEach.call(document.body.children, (el) => {
         if (el !== area && el.style.display !== "none") {
@@ -870,9 +880,6 @@ async function imprimirArrayBuffer(buf, blobUrl) {
       area.style.display = "block";
       document.body.classList.add("printing");
 
-      // Restaurar la pantalla SOLO cuando se cierra el cuadro de impresión
-      // (no con un temporizador fijo: en el iPhone la vista previa tarda y
-      // si restauramos antes, se ve cambiar el PDF por la versión dibujada).
       let restaurado = false;
       const restaurar = () => {
         if (restaurado) return;
@@ -885,12 +892,11 @@ async function imprimirArrayBuffer(buf, blobUrl) {
       try { window.addEventListener("afterprint", restaurar, { once: true }); } catch (e) {}
       setTimeout(restaurar, 120000);
 
-      await new Promise((r) => setTimeout(r, 250)); // que pinte los canvas antes de imprimir
+      await new Promise((r) => setTimeout(r, 250));
       window.print();
       return;
     } catch (e) { /* cae al respaldo */ }
   }
-  // Respaldo: abrir el PDF (al menos se ve / se puede guardar)
   if (blobUrl) window.open(blobUrl, "_blank");
 }
 
