@@ -266,7 +266,7 @@ input:focus { outline: none; border-color: var(--rojo); }
   }
   body.printing #print-area img {
     display: block; width: 100%; height: auto;
-    max-height: 275mm;
+    max-height: 252mm;
     object-fit: contain;
     border: 0;
     page-break-inside: avoid;
