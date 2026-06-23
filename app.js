@@ -1059,6 +1059,7 @@ function pintarHistorial(log) {
     return;
   }
   cont.innerHTML = "";
+  let abriendo = false;
   log.slice(0, 20).forEach((fac) => {
     const d = new Date(fac.fecha);
     const fecha = isNaN(d.getTime()) ? "" :
@@ -1071,8 +1072,18 @@ function pintarHistorial(log) {
         '<div class="hist-meta">' + fecha + (fac.identificacion ? " · " + escapeHtml(fac.identificacion) : "") + '</div>' +
       '</div>' +
       '<div class="hist-total">' + money(Number(fac.total) || 0) + '</div>' +
-      '<button class="hist-print">🖨️</button>';
-    div.querySelector(".hist-print").addEventListener("click", () => abrirPdfDeAzur(fac.numero));
+      '<span class="hist-print">🖨️</span>';
+    const abrir = async () => {
+      if (abriendo) return;
+      abriendo = true;
+      $("#loading").querySelector("p").textContent = "Abriendo factura...";
+      $("#loading").classList.add("active");
+      try { await abrirPdfDeAzur(fac.numero); } catch (e) {}
+      $("#loading").classList.remove("active");
+      $("#loading").querySelector("p").textContent = "Emitiendo factura...";
+      abriendo = false;
+    };
+    div.addEventListener("click", abrir);
     cont.appendChild(div);
   });
 }

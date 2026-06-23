@@ -280,16 +280,16 @@ input:focus { outline: none; border-color: var(--rojo); }
 .hist-item {
   display: flex; align-items: center; gap: 12px; background: #fff;
   padding: 16px; border-radius: 12px; box-shadow: var(--sombra);
+  cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,.08);
 }
 .hist-info { flex: 1; min-width: 0; }
 .hist-cli { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hist-meta { font-size: 13px; color: var(--texto-sec); margin-top: 2px; }
 .hist-total { font-weight: 800; font-size: 17px; color: var(--rojo); white-space: nowrap; }
 .hist-print {
-  border: none; background: var(--verde); color: #fff; font-size: 22px;
-  width: 52px; height: 52px; border-radius: 12px; cursor: pointer;
+  background: none; border: none; font-size: 22px; padding: 0;
 }
-.hist-print:active { background: var(--verde-osc); }
+.hist-item:active { background: #f0f0f0; }
 
 /* ====== POLISH / app más bonita ====== */
 body { background: linear-gradient(180deg, #f7f9fb 0%, #eaeef2 100%); }
