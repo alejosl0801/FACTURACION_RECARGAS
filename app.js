@@ -1291,5 +1291,9 @@ actualizarOffline();
 /* Registrar el service worker (network-first): hace la app instalable
    y siempre muestra la última versión. */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    try { reg.update(); } catch (e) {}
+    // revisar si hay versión nueva cada minuto (la actualización es automática)
+    setInterval(() => { try { reg.update(); } catch (e) {} }, 60000);
+  }).catch(() => {});
 }
