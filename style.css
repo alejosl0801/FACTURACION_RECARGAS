@@ -246,17 +246,13 @@ input:focus { outline: none; border-color: var(--rojo); }
 
 /* Área para imprimir el PDF real de Azur (oculta en pantalla) */
 #print-area { display: none; }
-/* La imagen del PDF se limita en altura para caber SIEMPRE en una hoja
-   (la factura de Azur es A4; al imprimir en Carta, al 100% se desbordaba a 2 hojas).
-   Con max-height en mm la imagen nunca pasa de una página, sea A4 o Carta. */
 #print-area canvas, #print-area img {
   display: block; margin: 0 auto;
-  max-width: 100%; max-height: 240mm; width: auto; height: auto;
+  max-width: 100%; max-height: 275mm; width: auto; height: auto;
   page-break-inside: avoid;
 }
-/* Salto de página SOLO entre páginas, nunca después de la última (evita hoja vacía) */
 #print-area img + img, #print-area canvas + canvas { page-break-before: always; }
-@page { margin: 8mm; }
+@page { size: A4 portrait; margin: 6mm; }
 
 /* ====== IMPRESIÓN ====== */
 @media print {
@@ -273,7 +269,11 @@ input:focus { outline: none; border-color: var(--rojo); }
   body.printing #screen-result,
   body.printing .comprobante,
   body.printing .result-actions { display: none !important; }
-  body.printing #print-area { display: block !important; }
+  body.printing #print-area {
+    display: block !important;
+    width: 100%; height: auto; overflow: hidden;
+    page-break-after: avoid;
+  }
   body.printing #print-area canvas, body.printing #print-area img { border: 0; }
 }
 
