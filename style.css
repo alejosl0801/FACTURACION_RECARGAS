@@ -246,7 +246,7 @@ input:focus { outline: none; border-color: var(--rojo); }
 
 /* Área para imprimir el PDF real de Azur (oculta en pantalla) */
 #print-area { display: none; }
-@page { size: A4 portrait; margin: 10mm; }
+@page { size: A4 portrait; margin: 0; }
 
 /* ====== IMPRESIÓN ====== */
 @media print {
@@ -261,13 +261,14 @@ input:focus { outline: none; border-color: var(--rojo); }
   body.printing #screen-result { display: none !important; }
   body.printing #print-area {
     display: block !important;
-    width: 100%; margin: 0; padding: 0;
+    width: 100%; margin: 0; padding: 5mm;
     overflow: hidden;
   }
   body.printing #print-area img {
-    display: block; width: 100%; height: auto;
-    max-height: 252mm;
-    object-fit: contain;
+    display: block;
+    width: auto; max-width: 100%;
+    height: auto; max-height: 100vh;
+    margin: 0 auto;
     border: 0;
     page-break-inside: avoid;
   }
