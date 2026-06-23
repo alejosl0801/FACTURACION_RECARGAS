@@ -442,4 +442,4 @@ html, body { overflow-x: hidden; }           /* nada se sale de la pantalla */
 .modo-tab.active { background: var(--verde); color: #fff; border-color: var(--verde); }
 
 /* Etiqueta de versión (para confirmar que el celular cargó la última) */
-.app-version { text-align: center; color: #b6bcc4; font-size: 12px; padding: 10px 0 2px; font-weight: 700; }
+.app-version { color: rgba(255,255,255,.85); font-size: 13px; font-weight: 800; }
