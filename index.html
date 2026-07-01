@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=16" />
+  <link rel="stylesheet" href="style.css?v=17" />
 </head>
 <body>
 
@@ -19,13 +19,14 @@
         <img src="logo-app.png" class="brand-logo" alt="PREVIFUEGO" /> PREVIFUEGO
       </span>
       <span style="display:flex;align-items:center;gap:12px">
-        <span class="app-version no-print">v16</span>
+        <span class="app-version no-print">v17</span>
         <button id="btn-historial" title="Historial de facturas"
           style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer">🧾</button>
       </span>
     </header>
     <input id="file-clientes" type="file" accept=".json,.csv,application/json" style="display:none" />
     <div id="offline-bar" class="offline-bar">⚠️ Sin internet — revisá la señal</div>
+    <div id="update-bar" class="update-bar" style="display:none">🆕 Nueva versión disponible — <b>Tocar para actualizar</b></div>
     <button id="nube-badge" class="nube-badge" title="Estado de la nube de clientes" hidden></button>
 
     <div class="content">
@@ -150,7 +151,7 @@
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
     }
   </script>
-  <script src="barcode.js?v=16"></script>
-  <script src="app.js?v=16"></script>
+  <script src="barcode.js?v=17"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

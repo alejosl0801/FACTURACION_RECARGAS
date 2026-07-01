@@ -36,6 +36,10 @@ input { font-size: 20px !important; padding: 16px !important; }
   display: none; background: #e67e22; color: #fff; text-align: center;
   font-weight: 800; padding: 10px; font-size: 16px;
 }
+.update-bar {
+  background: #27ae60; color: #fff; text-align: center;
+  font-weight: 700; padding: 12px; font-size: 16px; cursor: pointer;
+}
 
 /* Pista de qué falta (sobre el botón FACTURAR) */
 .facturar-hint {

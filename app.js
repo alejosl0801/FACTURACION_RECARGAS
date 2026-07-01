@@ -1209,12 +1209,38 @@ window.addEventListener("online", actualizarOffline);
 window.addEventListener("offline", actualizarOffline);
 actualizarOffline();
 
-/* Registrar el service worker (network-first): hace la app instalable
-   y siempre muestra la última versión. */
+/* Registrar el service worker y mostrar banner cuando hay versión nueva. */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=16", { updateViaCache: "none" }).then((reg) => {
+  navigator.serviceWorker.register("sw.js?v=17", { updateViaCache: "none" }).then((reg) => {
     try { reg.update(); } catch (e) {}
-    // revisar si hay versión nueva cada minuto (la actualización es automática)
     setInterval(() => { try { reg.update(); } catch (e) {} }, 60000);
+
+    const mostrarBanner = (sw) => {
+      const bar = $("#update-bar");
+      if (!bar) return;
+      bar.style.display = "block";
+      bar.addEventListener("click", () => {
+        bar.textContent = "Actualizando...";
+        sw.postMessage("skipWaiting");
+      }, { once: true });
+    };
+
+    // SW nuevo ya esperando (recarga tras update en segundo plano)
+    if (reg.waiting) { mostrarBanner(reg.waiting); }
+
+    reg.addEventListener("updatefound", () => {
+      const sw = reg.installing;
+      sw.addEventListener("statechange", () => {
+        if (sw.state === "installed" && navigator.serviceWorker.controller) {
+          mostrarBanner(sw);
+        }
+      });
+    });
   }).catch(() => {});
+
+  // Cuando el SW nuevo toma el control, recargar la página automáticamente
+  let recargando = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!recargando) { recargando = true; window.location.reload(); }
+  });
 }
