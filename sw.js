@@ -4,7 +4,6 @@
 const CACHE = "recargas-net-v17";
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("message", (e) => { if (e.data === "skipWaiting") self.skipWaiting(); });
 self.addEventListener("activate", (e) => e.waitUntil((async () => {
   // borrar cachés viejas
   const ks = await caches.keys();
