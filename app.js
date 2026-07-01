@@ -555,7 +555,7 @@ function renderCarrito() {
     div.className = "cart-item";
     div.innerHTML = `
       <div class="cart-name">${p.nombre} <span class="prod-cod">${p.cod}</span>
-        <small class="precio-edit">$ <input type="number" inputmode="decimal" step="0.01" min="0"
+        <small class="precio-edit">$ <input type="text" inputmode="decimal" step="0.01" min="0"
           value="${precio.toFixed(2)}" data-act="precio" /> c/u</small>
       </div>
       <div class="qty">
@@ -568,7 +568,7 @@ function renderCarrito() {
     div.querySelector('[data-act="mas"]').addEventListener("click", () => cambiarCantidad(cod, 1));
     const inp = div.querySelector('[data-act="precio"]');
     inp.addEventListener("change", () => {
-      let v = parseFloat(inp.value);
+      let v = parseFloat(inp.value.replace(",", "."));
       if (isNaN(v) || v < 0) v = 0;
       precioUnit[cod] = v;
       renderCarrito();
