@@ -71,6 +71,7 @@ input {
   border: 2px solid var(--gris-borde); border-radius: 10px; background: #fff;
 }
 input:focus { outline: none; border-color: var(--rojo); }
+#cliente-nombre, #cliente-dir { text-transform: uppercase; }
 
 .row { display: flex; gap: 10px; align-items: flex-end; }
 .col { flex: 1; }

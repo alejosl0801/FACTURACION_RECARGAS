@@ -313,11 +313,12 @@ function buscarCampo(obj, terminos) {
 
 /* Vuelca un registro de cliente (de la base local o de la nube) en el form */
 function llenarDatosCliente(c) {
-  $("#cliente-nombre").value = c.nombre || "";
-  if (c.dir) $("#cliente-dir").value = c.dir;
+  const up = (s) => (s || "").toUpperCase();
+  $("#cliente-nombre").value = up(c.nombre);
+  if (c.dir) $("#cliente-dir").value = up(c.dir);
   const tel = c.tel || c.cel || "";
   if (tel) $("#cliente-tel").value = tel;
-  if (c.correo) $("#cliente-email").value = c.correo;
+  if (c.correo) $("#cliente-email").value = up(c.correo);
 }
 
 async function buscarSRI() {
@@ -367,10 +368,10 @@ async function buscarSRI() {
       setSriMsg("No se encontró ese número en el SRI. Revisá los dígitos.", true);
       return;
     }
-    $("#cliente-nombre").value = nombre;
+    $("#cliente-nombre").value = nombre.toUpperCase();
 
     const direccion = buscarCampo(data, ["direccion", "direccioncompleta"]);
-    if (direccion) $("#cliente-dir").value = direccion;
+    if (direccion) $("#cliente-dir").value = direccion.toUpperCase();
 
     setSriMsg("✓ " + nombre + " — datos del SRI cargados. Tel/correo no son públicos: completalos a mano si hace falta.");
     actualizarBotonFacturar();
@@ -454,8 +455,8 @@ function restaurarSesion() {
     const b = JSON.parse(localStorage.getItem("borrador") || "null");
     if (b) {
       if (b.id) $("#cliente-id").value = b.id;
-      if (b.nombre) $("#cliente-nombre").value = b.nombre;
-      if (b.dir) $("#cliente-dir").value = b.dir;
+      if (b.nombre) $("#cliente-nombre").value = b.nombre.toUpperCase();
+      if (b.dir) $("#cliente-dir").value = (b.dir || "").toUpperCase();
       if (b.tel) $("#cliente-tel").value = b.tel;
       if (b.email) $("#cliente-email").value = b.email;
       if (b.carrito && typeof b.carrito === "object") carrito = b.carrito;
@@ -627,10 +628,10 @@ const escapeHtml = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<
 function contextoVenta() {
   const cli = {
     id: $("#cliente-id").value.trim(),
-    nombre: $("#cliente-nombre").value.trim(),
-    dir: $("#cliente-dir").value.trim() || "S/N",
+    nombre: $("#cliente-nombre").value.trim().toUpperCase(),
+    dir: ($("#cliente-dir").value.trim() || "S/N").toUpperCase(),
     tel: $("#cliente-tel").value.trim() || "—",
-    email: $("#cliente-email").value.trim() || "—"
+    email: $("#cliente-email").value.trim().toUpperCase() || "—"
   };
   let subtotal = 0;
   const filas = Object.keys(carrito).map((cod) => {
