@@ -387,7 +387,16 @@ async function buscarSRI() {
 $("#btn-sri").addEventListener("click", buscarSRI);
 
 ["#cliente-id", "#cliente-nombre", "#cliente-dir", "#cliente-tel", "#cliente-email"].forEach((sel) => {
-  $(sel).addEventListener("input", () => { actualizarBotonFacturar(); guardarBorrador(); });
+  $(sel).addEventListener("input", (e) => {
+    // Convertir a mayúsculas en tiempo real (excepto id y tel que son numéricos)
+    if (sel !== "#cliente-id" && sel !== "#cliente-tel") {
+      const pos = e.target.selectionStart;
+      e.target.value = e.target.value.toUpperCase();
+      try { e.target.setSelectionRange(pos, pos); } catch (_) {}
+    }
+    actualizarBotonFacturar();
+    guardarBorrador();
+  });
 });
 
 /* Enter en cédula/RUC busca en el SRI; al salir del campo también
