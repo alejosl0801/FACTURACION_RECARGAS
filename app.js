@@ -69,7 +69,6 @@ const PRODUCTOS = [
 let carrito = {};            // { cod: cantidad }
 let precioUnit = {};         // { cod: precio unitario actual (editable) }
 let formaPago = "efectivo";
-let modoActivo = "REC";      // "REC" (recargas) o "VENTA" (ventas)
 let categoriaActiva = "PQS"; // pestaña de productos visible: "PQS" o "CO2"
 
 /* ============ HELPERS ============ */
@@ -483,10 +482,21 @@ function renderProductos(filtro = "") {
   const cont = $("#lista-productos");
   cont.innerHTML = "";
   const f = filtro.trim().toLowerCase();
-  PRODUCTOS
-    .filter((p) => p.tipo === modoActivo && p.cat === categoriaActiva)
-    .filter((p) => p.nombre.toLowerCase().includes(f) || p.cod.toLowerCase().includes(f))
-    .forEach((p) => {
+  const grupos = [
+    { label: "🔁 Recargas", tipo: "REC" },
+    { label: "🧯 Ventas",   tipo: "VENTA" }
+  ];
+  let total = 0;
+  grupos.forEach(({ label, tipo }) => {
+    const items = PRODUCTOS
+      .filter((p) => p.tipo === tipo && p.cat === categoriaActiva)
+      .filter((p) => !f || p.nombre.toLowerCase().includes(f) || p.cod.toLowerCase().includes(f));
+    if (!items.length) return;
+    const sep = document.createElement("div");
+    sep.className = "prod-seccion";
+    sep.textContent = label;
+    cont.appendChild(sep);
+    items.forEach((p) => {
       const div = document.createElement("div");
       div.className = "prod";
       div.innerHTML = `
@@ -497,23 +507,13 @@ function renderProductos(filtro = "") {
         <div class="prod-add">＋</div>`;
       div.addEventListener("click", () => agregar(p.cod));
       cont.appendChild(div);
+      total++;
     });
-  if (cont.children.length === 0) {
+  });
+  if (total === 0) {
     cont.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:10px">Sin resultados</p>';
   }
 }
-
-/* selector RECARGAS / VENTAS */
-document.querySelectorAll(".modo-tab").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".modo-tab").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    modoActivo = btn.dataset.modo;
-    categoriaActiva = "PQS"; // al cambiar de modo, volver a PQS
-    document.querySelectorAll(".cat-tab").forEach((b) => b.classList.toggle("active", b.dataset.cat === "PQS"));
-    renderProductos();
-  });
-});
 
 /* pestañas de categoría PQS / CO2 */
 document.querySelectorAll(".cat-tab").forEach((btn) => {
@@ -1232,7 +1232,7 @@ actualizarOffline();
 /* Registrar el service worker (network-first): hace la app instalable
    y siempre muestra la última versión. */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=17", { updateViaCache: "none" }).then((reg) => {
+  navigator.serviceWorker.register("sw.js?v=18", { updateViaCache: "none" }).then((reg) => {
     try { reg.update(); } catch (e) {}
     setInterval(() => { try { reg.update(); } catch (e) {} }, 60000);
   }).catch(() => {});
