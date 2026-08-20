@@ -1088,7 +1088,13 @@ function pintarHistorial(log) {
       abriendo = true;
       $("#loading").querySelector("p").textContent = "Abriendo factura...";
       $("#loading").classList.add("active");
+      const tope = setTimeout(() => {
+        $("#loading").classList.remove("active");
+        $("#loading").querySelector("p").textContent = "Emitiendo factura...";
+        abriendo = false;
+      }, 30000);
       try { await abrirPdfDeAzur(fac.numero); } catch (e) {}
+      clearTimeout(tope);
       $("#loading").classList.remove("active");
       $("#loading").querySelector("p").textContent = "Emitiendo factura...";
       abriendo = false;
@@ -1209,6 +1215,10 @@ function celebrar() {
 restaurarSesion();   // recupera la venta a medio hacer y la última forma de pago
 renderProductos();
 renderCarrito();
+
+// Siempre ocultar el spinner al arrancar (puede quedar pegado si Safari
+// suspendió la pestaña mientras estaba visible).
+$("#loading").classList.remove("active");
 
 /* Aviso simple de internet (online/offline) */
 function actualizarOffline() {
