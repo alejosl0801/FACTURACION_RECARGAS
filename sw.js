@@ -5,13 +5,9 @@ const CACHE = "recargas-net-v18";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil((async () => {
-  // borrar cachés viejas
   const ks = await caches.keys();
   await Promise.all(ks.map((k) => (k === CACHE ? null : caches.delete(k))));
   await self.clients.claim();
-  // recargar SOLO las ventanas abiertas para que tomen la versión nueva
-  const cls = await self.clients.matchAll({ type: "window" });
-  for (const c of cls) { try { await c.navigate(c.url); } catch (e) {} }
 })()));
 
 self.addEventListener("fetch", (event) => {
