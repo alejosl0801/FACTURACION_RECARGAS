@@ -9,6 +9,25 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="style.css?v=18" />
+  <!-- Auto-recuperación: si la carga anterior no terminó (crash), limpiar SW y recargar -->
+  <script>
+  (function(){
+    var KEY = 'app_loading';
+    var prev = localStorage.getItem(KEY);
+    localStorage.setItem(KEY, Date.now());
+    // Si la marca tiene menos de 8 segundos, la carga anterior crasheó
+    if (prev && (Date.now() - parseInt(prev)) < 8000) {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(r){ r.unregister(); });
+          caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+          location.replace(location.href.split('?')[0] + '?r=' + Date.now());
+        });
+      }
+    }
+    window.addEventListener('load', function(){ localStorage.removeItem(KEY); });
+  })();
+  </script>
 </head>
 <body>
 
