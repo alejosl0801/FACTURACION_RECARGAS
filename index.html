@@ -168,13 +168,14 @@
   <script src="barcode.js?v=19"></script>
   <script src="app.js?v=19"></script>
   <script>
-    // Registrar SW con timestamp para que el navegador SIEMPRE compruebe si hay uno nuevo
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?t=' + Date.now(), { updateViaCache: 'none' })
+      var _prevCtrl = navigator.serviceWorker.controller;
+      navigator.serviceWorker.register('sw.js?v=19', { updateViaCache: 'none' })
+        .then(function(reg){ setInterval(function(){ try{reg.update();}catch(e){} }, 60000); })
         .catch(function(){});
-      var _recargando = false;
       navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (!_recargando) { _recargando = true; location.reload(); }
+        // Solo recargar si YA había un SW activo (= actualización real, no primera instalación)
+        if (_prevCtrl) { location.reload(); }
       });
     }
   </script>
