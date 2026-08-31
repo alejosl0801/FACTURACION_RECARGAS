@@ -1229,11 +1229,15 @@ window.addEventListener("online", actualizarOffline);
 window.addEventListener("offline", actualizarOffline);
 actualizarOffline();
 
-/* Registrar el service worker (network-first): hace la app instalable
-   y siempre muestra la última versión. */
+/* Registrar el service worker. Cuando el SW nuevo toma el control,
+   la página se recarga sola (sin que el usuario haga nada). */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=18", { updateViaCache: "none" }).then((reg) => {
+  navigator.serviceWorker.register("sw.js?v=19", { updateViaCache: "none" }).then((reg) => {
     try { reg.update(); } catch (e) {}
     setInterval(() => { try { reg.update(); } catch (e) {} }, 60000);
   }).catch(() => {});
+  let recargando = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!recargando) { recargando = true; location.reload(); }
+  });
 }
