@@ -19,6 +19,9 @@
     if (prev && (Date.now() - parseInt(prev)) < 8000) {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
+          // Solo limpiar y recargar si HAY un SW registrado (el culpable del crash).
+          // Si ya está vacío, no recargar — evita un loop de recargas.
+          if (!regs.length) return;
           regs.forEach(function(r){ r.unregister(); });
           caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
           location.replace(location.href.split('?')[0] + '?r=' + Date.now());
