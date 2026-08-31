@@ -167,5 +167,16 @@
   </script>
   <script src="barcode.js?v=19"></script>
   <script src="app.js?v=19"></script>
+  <script>
+    // Registrar SW con timestamp para que el navegador SIEMPRE compruebe si hay uno nuevo
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js?t=' + Date.now(), { updateViaCache: 'none' })
+        .catch(function(){});
+      var _recargando = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!_recargando) { _recargando = true; location.reload(); }
+      });
+    }
+  </script>
 </body>
 </html>

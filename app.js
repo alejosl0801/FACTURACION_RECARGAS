@@ -1229,15 +1229,5 @@ window.addEventListener("online", actualizarOffline);
 window.addEventListener("offline", actualizarOffline);
 actualizarOffline();
 
-/* Registrar el service worker. Cuando el SW nuevo toma el control,
-   la página se recarga sola (sin que el usuario haga nada). */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=19", { updateViaCache: "none" }).then((reg) => {
-    try { reg.update(); } catch (e) {}
-    setInterval(() => { try { reg.update(); } catch (e) {} }, 60000);
-  }).catch(() => {});
-  let recargando = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!recargando) { recargando = true; location.reload(); }
-  });
-}
+// El registro del SW y el controllerchange están en index.html (inline)
+// para que corran lo más temprano posible y sin depender del caché de app.js.
