@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=19" />
+  <link rel="stylesheet" href="style.css?v=20" />
   <!-- Auto-recuperación: si la carga anterior no terminó (crash), limpiar SW y recargar -->
   <script>
   (function(){
@@ -168,12 +168,12 @@
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
     }
   </script>
-  <script src="barcode.js?v=19"></script>
-  <script src="app.js?v=19"></script>
+  <script src="barcode.js?v=20"></script>
+  <script src="app.js?v=20"></script>
   <script>
     if ('serviceWorker' in navigator) {
       var _prevCtrl = navigator.serviceWorker.controller;
-      navigator.serviceWorker.register('sw.js?v=19', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('sw.js?v=20', { updateViaCache: 'none' })
         .then(function(reg){ setInterval(function(){ try{reg.update();}catch(e){} }, 60000); })
         .catch(function(){});
       navigator.serviceWorker.addEventListener('controllerchange', function() {

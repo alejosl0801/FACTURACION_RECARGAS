@@ -43,26 +43,38 @@ const CONFIG = {
    - Los duplicados de Azur (códigos terminados en "-") se omiten:
      se deja un solo registro por recarga.                            */
 const PRODUCTOS = [
-  // ====== RECARGAS ======
-  // --- PQS (precio por defecto = libras × $1) ---
-  { cod: "REC3PQS",   nombre: "RECARGA 3 LB PQS",    precio: 3.50,   cat: "PQS", tipo: "REC" },
-  { cod: "REC5PQS",   nombre: "RECARGA 5 LB PQS",    precio: 5.00,   cat: "PQS", tipo: "REC" },
-  { cod: "REC10PQS",  nombre: "RECARGA 10 LB PQS",   precio: 10.00,  cat: "PQS", tipo: "REC" },
-  { cod: "REC20PQS",  nombre: "RECARGA 20 LB PQS",   precio: 18.00,  cat: "PQS", tipo: "REC" },
-  // --- CO2 (precio por defecto = libras × $1) ---
-  { cod: "REC5CO2",   nombre: "RECARGA 5 LB CO2",    precio: 5.00,   cat: "CO2", tipo: "REC" },
-  { cod: "REC10CO2",  nombre: "RECARGA 10 LB CO2",   precio: 10.00,  cat: "CO2", tipo: "REC" },
-  { cod: "REC20CO2",  nombre: "RECARGA 20 LB CO2",   precio: 18.00,  cat: "CO2", tipo: "REC" },
+  // `nombre` = texto corto que ve Fabiola en pantalla.
+  // `azur`   = NOMBRE OFICIAL del catálogo de Azur: es lo único que viaja en `descripcion`.
+  //            La API v2 sobrescribe el producto maestro con ese texto, así que NUNCA
+  //            inventar ni abreviar. Fuente: Dropbox\PyroShield\CODIGOS_Y_NOMBRES_AZUR_20261005.txt
+  //            y GUIAS/PROCESO_FACTURACION_API_LOCAL.md §9 (alineado 05/10/2026 por Jarvis 2).
+  // Precio = default editable; el real es el pactado con ESE cliente (MATRIZ GENERAL) o el catálogo.
+  // --- RECARGAS PQS ---
+  { cod: "REC3PQS",   nombre: "RECARGA 3 LB PQS",    azur: "RECARGA 3 LB PQS",                                                   precio: 3.50,   cat: "PQS", tipo: "REC" },
+  { cod: "REC5PQS",   nombre: "RECARGA 5 LB PQS",    azur: "RECARGA Y MANTENIMIENTO EXTINTOR PQS 5 LIBRAS",                      precio: 5.00,   cat: "PQS", tipo: "REC" },
+  { cod: "REC10PQS",  nombre: "RECARGA 10 LB PQS",   azur: "RECARGA - MANTENIMIENTO EXTINTOR 10 LIBRAS - POLVO QUIMICO SECO",    precio: 10.00,  cat: "PQS", tipo: "REC" },
+  { cod: "REC20PQS",  nombre: "RECARGA 20 LB PQS",   azur: "RECARGA Y MANTENIMIENTO EXTINTOR PQS 20 LIBRAS",                     precio: 18.00,  cat: "PQS", tipo: "REC" },
+  // --- RECARGAS CO2 ---
+  { cod: "REC5CO2",   nombre: "RECARGA 5 LB CO2",    azur: "RECARGA Y MANTENIMIENTO EXTINTOR CO2 5 LIBRAS",                      precio: 5.00,   cat: "CO2", tipo: "REC" },
+  { cod: "REC10CO2",  nombre: "RECARGA 10 LB CO2",   azur: "RECARGA - MANTENIMIENTO EXTINTOR 10 LIBRAS - DIOXIDO DE CARBONO",    precio: 10.00,  cat: "CO2", tipo: "REC" },
+  { cod: "REC20CO2",  nombre: "RECARGA 20 LB CO2",   azur: "RECARGA - MANTENIMIENTO",                                            precio: 18.00,  cat: "CO2", tipo: "REC" },
 
-  // ====== VENTAS (extintores) — precio = subtotal, editable; IVA 15% se suma solo ======
+  // ====== VENTAS (extintores) — IVA 15% se suma solo ======
   // --- PQS ---
-  { cod: "VENT3PQS",  nombre: "EXTINTOR 3 LBS PQS",  precio: 13.00,  cat: "PQS", tipo: "VENTA" },
-  { cod: "VENT5PQS",  nombre: "EXTINTOR 5 LBS PQS",  precio: 17.00,  cat: "PQS", tipo: "VENTA" },
-  { cod: "VENT10PQS", nombre: "EXTINTOR 10 LBS PQS", precio: 24.00,  cat: "PQS", tipo: "VENTA" },
-  { cod: "VENT20PQS", nombre: "EXTINTOR 20 LBS PQS", precio: 38.00,  cat: "PQS", tipo: "VENTA" },
-  // --- CO2 ---
-  { cod: "VENT5CO2",  nombre: "EXTINTOR 5 LBS CO2",  precio: 39.80,  cat: "CO2", tipo: "VENTA" },
-  { cod: "VENT10CO2", nombre: "EXTINTOR 10 LBS CO2", precio: 52.00,  cat: "CO2", tipo: "VENTA" }
+  { cod: "VENT2.5PQS",  nombre: "EXTINTOR 2.5 LBS PQS",   azur: "EXTINTOR 2.5 LIBRAS - POLVO QUIMICO SECO",                       precio: 5.88,   cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT5PQS",    nombre: "EXTINTOR 5 LBS PQS",     azur: "EXTINTOR 5 LIBRAS - POLVO QUIMICO SECO",                         precio: 17.00,  cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT10pqs",   nombre: "EXTINTOR 10 LBS PQS",    azur: "EXTINTOR 10 LIBRAS - POLVO QUIMICO SECO",                        precio: 24.00,  cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT20PQS",   nombre: "EXTINTOR 20 LBS PQS",    azur: "EXTINTOR 20 LIBRAS - POLVO QUIMICO SECO",                        precio: 38.00,  cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT50PQS",   nombre: "EXTINTOR 50 LBS PQS (CON CARRETILLA)",  azur: "EXTINTOR 50 LIBRAS - POLVO QUIMICO SECO (CON CARRETILLA)",   precio: 132.31, cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT100PQS",  nombre: "EXTINTOR 100 LBS PQS (CON CARRETILLA)", azur: "EXTINTOR 100 LIBRAS - POLVO QUIMICO SECO (CON CARRETILLA)",  precio: 168.88, cat: "PQS", tipo: "VENTA" },
+  { cod: "VENT150PQS",  nombre: "EXTINTOR 150 LBS PQS (CON CARRETILLA)", azur: "EXTINTOR 150 LIBRAS - POLVO QUIMICO SECO (CON CARRETILLA)",  precio: 216.85, cat: "PQS", tipo: "VENTA" },
+  // --- CO2 --- (VENT20CO2 = portátil SIN carro; con carro = VENT20CO2TR)
+  { cod: "VENT5CO2",    nombre: "EXTINTOR 5 LBS CO2",     azur: "EXTINTOR 5 LIBRAS - GAS CARBONICO",                              precio: 39.80,  cat: "CO2", tipo: "VENTA" },
+  { cod: "VENT10CO2",   nombre: "EXTINTOR 10 LBS CO2",    azur: "EXTINTOR 10 LIBRAS - GAS CARBONICO",                             precio: 52.00,  cat: "CO2", tipo: "VENTA" },
+  { cod: "VENT20CO2",   nombre: "EXTINTOR 20 LBS CO2 (PORTATIL, SIN CARRO)", azur: "EXTINTOR 20 LIBRAS - GAS CARBONICO",          precio: 88.46,  cat: "CO2", tipo: "VENTA" },
+  { cod: "VENT20CO2TR", nombre: "EXTINTOR 20 LBS CO2 CON CARRO", azur: "EXTINTOR 20 LIBRAS - GAS CARBONICO CON CARRO",            precio: 104.98, cat: "CO2", tipo: "VENTA" },
+  { cod: "VENT50CO2",   nombre: "EXTINTOR 50 LBS CO2",    azur: "EXTINTOR 50 LIBRAS - GAS CARBONICO CON CABEZAL DE DISPARO RAPIDO", precio: 240.00, cat: "CO2", tipo: "VENTA" },
+  { cod: "VENT100CO2",  nombre: "EXTINTOR 100 LBS CO2",   azur: "EXTINTOR 100 LIBRAS - GAS CARBONICO / CON CABEZAL MARITIMO",     precio: 374.40, cat: "CO2", tipo: "VENTA" }
 ];
 
 /* ============ ESTADO ============ */
@@ -664,7 +676,7 @@ function construirPayload(ctx) {
     return {
       codigo_principal: p.cod,
       codigo_auxiliar: null,
-      descripcion: p.nombre,
+      descripcion: p.azur,  // nombre OFICIAL de Azur (nunca el corto de pantalla)
       tipoproducto: CONFIG.TIPO_PRODUCTO,
       tipo_iva: CONFIG.TIPO_IVA,
       precio_unitario: Number(precioUnit[cod].toFixed(2)),
@@ -689,7 +701,7 @@ function construirPayload(ctx) {
       correo: $("#cliente-email").value.trim() || null
     },
     items: items,
-    pagos: [{ tipo: formaPago === "transferencia" ? "20" : "01", total: ctx.total.toFixed(2) }],
+    pagos: [{ tipo: formaPago === "transferencia" ? "20" : "01", total: ctx.total.toFixed(2) }], // SOLO contado: factura queda pagada al instante (decisión de Alejandro 05/10/2026); sin plazo, sin crédito
     informacion_adicional: [{ nombre: "Atendido por", detalle: CONFIG.EMISOR.comercial }]
   };
 }
